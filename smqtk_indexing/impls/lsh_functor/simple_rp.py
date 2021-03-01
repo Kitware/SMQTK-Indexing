@@ -4,7 +4,7 @@ import numpy as np
 
 from smqtk_descriptors.utils import parallel_map
 from smqtk_indexing import LshFunctor
-from smqtk_indexing.utils.cli import ProgressReporter
+from smqtk_indexing.utils.progress_reporter import ProgressReporter
 
 
 class SimpleRPFunctor (LshFunctor):

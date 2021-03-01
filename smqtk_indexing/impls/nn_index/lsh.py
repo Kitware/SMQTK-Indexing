@@ -25,7 +25,7 @@ from smqtk_indexing import HashIndex, LshFunctor, NearestNeighborsIndex
 from smqtk_indexing.impls.hash_index.linear import LinearHashIndex
 from smqtk_indexing.utils import metrics
 from smqtk_indexing.utils.bits import bit_vector_to_int_large
-from smqtk_indexing.utils.cli import ProgressReporter
+from smqtk_indexing.utils.progress_reporter import ProgressReporter
 
 
 LOG = logging.getLogger(__name__)
