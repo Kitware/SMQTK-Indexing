@@ -1,11 +1,10 @@
-from __future__ import division
 import logging
 
 import numpy as np
 
-from smqtk.algorithms.nn_index.lsh.functors import LshFunctor
-from smqtk.representation.descriptor_element import elements_to_matrix
-from smqtk.utils.cli import ProgressReporter
+from smqtk_descriptors.utils import parallel_map
+from smqtk_indexing import LshFunctor
+from smqtk_indexing.utils.cli import ProgressReporter
 
 
 class SimpleRPFunctor (LshFunctor):
@@ -97,9 +96,10 @@ class SimpleRPFunctor (LshFunctor):
             dbg_report_interval and pr.report()
             descriptors = descriptors_l
         self._log.info("Creating matrix of descriptors for fitting")
-        x = elements_to_matrix(
-            descriptors, report_interval=dbg_report_interval,
-            use_multiprocessing=use_multiprocessing)
+        x = np.asarray(list(
+            parallel_map(lambda d_: d_.vector(), descriptors,
+                         use_multiprocessing=use_multiprocessing)
+        ))
         self._log.debug("descriptor matrix shape: %s", x.shape)
         n, dim = x.shape
 

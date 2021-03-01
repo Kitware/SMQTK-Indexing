@@ -1,7 +1,7 @@
 import unittest.mock as mock
 import unittest
 
-from smqtk.algorithms.nn_index.hash_index import HashIndex
+from smqtk_indexing.interfaces.hash_index import HashIndex
 
 
 class DummyHI (HashIndex):

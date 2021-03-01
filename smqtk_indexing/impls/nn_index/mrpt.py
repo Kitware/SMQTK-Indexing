@@ -1,29 +1,26 @@
-# coding=utf-8
-from __future__ import absolute_import, division
-from __future__ import print_function, unicode_literals
-
 from itertools import chain, groupby
+import logging
+import pickle
 from os import path as osp
 import threading
 
 import numpy as np
-from six.moves import range, cPickle as pickle, zip
-from six import next
 
-from smqtk.algorithms.nn_index import NearestNeighborsIndex
-from smqtk.exceptions import ReadOnlyError
-from smqtk.representation import DescriptorSet
-from smqtk.representation.descriptor_element import elements_to_matrix
-from smqtk.utils.configuration import (
+from smqtk_core.configuration import (
     from_config_dict,
     make_default_config,
     to_config_dict
 )
-from smqtk.utils.dict import merge_dict
-from smqtk.utils.file import safe_create_dir
+from smqtk_core.dict import merge_dict
+from smqtk_dataprovider.exceptions import ReadOnlyError
+from smqtk_dataprovider.utils.file import safe_create_dir
+from smqtk_descriptors import DescriptorSet
+from smqtk_descriptors.utils import parallel_map
+from smqtk_indexing import NearestNeighborsIndex
 
 
 CHUNK_SIZE = 5000
+LOG = logging.getLogger(__name__)
 
 
 class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
@@ -212,7 +209,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
 
         # Load the index/parameters if one exists
         if self._has_model_files():
-            self._log.debug("Found existing model files. Loading.")
+            LOG.debug("Found existing model files. Loading.")
             self._load_mrpt_model()
 
     def get_config(self):
@@ -247,30 +244,23 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
         d = sample_v.size
         leaf_size = n / (1 << self._depth)
 
-        self._log.debug(
-            "Building %d trees (T) of depth %d (l) from %g descriptors (N) "
-            "of length %g",
-            self._num_trees, self._depth, n, d)
-        self._log.debug(
-            "Leaf size             (L = N/2^l)  ~ %g/2^%d = %g",
-            n, self._depth, leaf_size)
-        self._log.debug(
-            "UUIDs stored                (T*N)  = %g * %g = %g",
-            self._num_trees, n, self._num_trees*n)
-        self._log.debug(
-            "Examined UUIDs              (T*L)  ~ %g * %g = %g",
-            self._num_trees, leaf_size, self._num_trees*leaf_size)
-        self._log.debug(
-            "Examined/DB size  (T*L/N = T/2^l)  ~ %g/%g = %.3f",
-            self._num_trees*leaf_size, n, self._num_trees*leaf_size/n)
+        nt = self._num_trees
+        depth = self._depth
+        LOG.debug(
+            f"Building {nt} trees (T) of depth {depth} (l) "
+            f"from {n:g} descriptors (N) of length {d:g}")
+        LOG.debug(f"Leaf size             (L = N/2^l)  ~ {n:g}/2^{depth:d} = {leaf_size:g}")
+        LOG.debug(f"UUIDs stored                (T*N)  = {nt:g} * {n:g} = {nt*n:g}")
+        LOG.debug(f"Examined UUIDs              (T*L)  ~ {nt:g} * {leaf_size:g} = {nt*leaf_size:g}")
+        LOG.debug(f"Examined/DB size  (T*L/N = T/2^l)  ~ {nt*leaf_size}/{n} = {nt*leaf_size/n:.3f}")
 
         if (1 << self._depth) > n:
-            self._log.warn(
-                "There are insufficient elements (%d < 2^%d) to populate "
-                "all the leaves of the tree. Consider lowering the depth "
-                "parameter.", n, self._depth)
+            LOG.warning(
+                f"There are insufficient elements ({n:d} < 2^{depth:d}) to "
+                f"populate all the leaves of the tree. Consider lowering the "
+                f"depth parameter.")
 
-        self._log.debug("Projecting onto random bases")
+        LOG.debug("Projecting onto random bases")
         # Build all the random bases and the projections at the same time
         # (_num_trees * _depth shouldn't really be that high -- if it is,
         # you're a monster)
@@ -292,14 +282,18 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             k_end = min((k+1) * chunk_size, n)
             k_len = k_end - k_beg
             # Run the descriptors through elements_to_matrix
-            elements_to_matrix(
-                chunk, mat=pts_array, report_interval=1.0,
-                use_multiprocessing=self._use_multiprocessing)
+            # - Using slicing on pts_array due to g being <= chunk-size on the
+            #   last chunk.
+            pts_array[:len(chunk)] = list(parallel_map(
+                lambda d_: d_.vector(),
+                chunk,
+                use_multiprocessing=self._use_multiprocessing
+            ))
             # Insert into projection matrix
             projs[k_beg:k_end] = pts_array[:k_len].dot(random_bases)
         del pts_array
 
-        self._log.debug("Constructing trees")
+        LOG.debug("Constructing trees")
         desc_ids = list(self._descriptor_set.keys())
         # Start with no trees
         self._trees = []
@@ -307,7 +301,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             # Array of splits is a packed tree
             splits = np.empty(((1 << self._depth) - 1,), np.float64)
 
-            self._log.debug("Constructing tree #%d", t+1)
+            LOG.debug(f"Constructing tree #{t+1}")
 
             # Build the tree & store it
             leaves = self._build_single_tree(projs[:, t], splits)
@@ -392,17 +386,16 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
         return _build_recursive(np.arange(proj.shape[0]))
 
     def _save_mrpt_model(self):
-        self._log.debug("Caching index and parameters: %s, %s",
-                        self._index_filepath, self._index_param_filepath)
+        LOG.debug(f"Caching index and parameters: {self._index_filepath}, "
+                  f"{self._index_param_filepath}")
         if self._index_filepath:
-            self._log.debug("Caching index: %s", self._index_filepath)
+            LOG.debug(f"Caching index: {self._index_filepath}")
             safe_create_dir(osp.dirname(self._index_filepath))
             # noinspection PyTypeChecker
             with open(self._index_filepath, "wb") as f:
                 pickle.dump(self._trees, f, self._pickle_protocol)
         if self._index_param_filepath:
-            self._log.debug("Caching index params: %s",
-                            self._index_param_filepath)
+            LOG.debug(f"Caching index params: {self._index_param_filepath}")
             safe_create_dir(osp.dirname(self._index_param_filepath))
             params = {
                 "read_only": self._read_only,
@@ -414,11 +407,10 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
                 pickle.dump(params, f, self._pickle_protocol)
 
     def _load_mrpt_model(self):
-        self._log.debug("Loading index and parameters: %s, %s",
-                        self._index_filepath, self._index_param_filepath)
+        LOG.debug(f"Loading index and parameters: {self._index_filepath}, "
+                  f"{self._index_param_filepath}")
         if self._index_param_filepath:
-            self._log.debug("Loading index params: %s",
-                            self._index_param_filepath)
+            LOG.debug(f"Loading index params: {self._index_param_filepath}")
             with open(self._index_param_filepath, 'rb') as f:
                 params = pickle.load(f)
             self._read_only = params['read_only']
@@ -427,7 +419,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
 
         # Load the index
         if self._index_filepath:
-            self._log.debug("Loading index: %s", self._index_filepath)
+            LOG.debug(f"Loading index: {self._index_filepath}")
             # noinspection PyTypeChecker
             with open(self._index_filepath, "rb") as f:
                 self._trees = pickle.load(f)
@@ -460,9 +452,9 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
                 raise ReadOnlyError("Cannot modify container attributes due to "
                                     "being in read-only mode.")
 
-            self._log.info("Building new MRPT index")
+            LOG.info("Building new MRPT index")
 
-            self._log.debug("Clearing and adding new descriptor elements")
+            LOG.debug("Clearing and adding new descriptor elements")
             # NOTE: It may be the case for some DescriptorSet implementations,
             # this clear may interfere with iteration when part of the input
             # iterator of descriptors was this index's previous descriptor-set,
@@ -470,7 +462,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             self._descriptor_set.clear()
             self._descriptor_set.add_many_descriptors(descriptors)
 
-            self._log.debug('Building MRPT index')
+            LOG.debug('Building MRPT index')
             self._build_multiple_trees()
 
             self._save_mrpt_model()
@@ -496,7 +488,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             if self._read_only:
                 raise ReadOnlyError("Cannot modify container attributes due "
                                     "to being in read-only mode.")
-            self._log.debug("Updating index by rebuilding with union. ")
+            LOG.debug("Updating index by rebuilding with union. ")
             self.build_index(chain(self._descriptor_set, descriptors))
 
     def _remove_from_index(self, uids):
@@ -559,8 +551,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
 
         def _exact_query(_uuids):
             set_size = len(_uuids)
-            self._log.debug("Exact query requested with %d descriptors",
-                            set_size)
+            LOG.debug(f"Exact query requested with {set_size} descriptors")
 
             # Assemble the array to query from the descriptors that match
             d_v = d.vector()
@@ -572,10 +563,10 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             dists = ((pts_array - d_v) ** 2).sum(axis=1)
 
             if n > dists.shape[0]:
-                self._log.warning(
-                    "There were fewer descriptors (%d) in the set than "
-                    "requested in the query (%d). Returning entire set.",
-                    dists.shape[0], n)
+                LOG.warning(
+                    f"There were fewer descriptors ({dists.shape[0]}) in the "
+                    f"set than requested in the query ({n}). Returning entire "
+                    f"set.")
             if n >= dists.shape[0]:
                 return _uuids, dists
 
@@ -584,16 +575,16 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
                     dists[near_indices])
 
         with self._model_lock:
-            self._log.debug("Received query for %d nearest neighbors", n)
+            LOG.debug(f"Received query for {n} nearest neighbors")
 
             depth, ntrees, db_size = self._depth, self._num_trees, self.count()
             leaf_size = db_size//(1 << depth)
             if leaf_size * ntrees < n:
-                self._log.warning(
-                    "The number of descriptors in a leaf (%d) times the "
-                    "number of trees (%d) is less than the number of "
-                    "descriptors requested by the query (%d). The query "
-                    "result will be deficient.", leaf_size, ntrees, n)
+                LOG.warning(
+                    f"The number of descriptors in a leaf ({leaf_size}) times "
+                    f"the number of trees ({ntrees}) is less than the number "
+                    f"of descriptors requested by the query ({n}). The query "
+                    f"result will be deficient.")
 
             # Take union of all tree hits
             tree_hits = set()
@@ -601,24 +592,21 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
                 tree_hits.update(_query_single(t))
 
             hit_union = len(tree_hits)
-            self._log.debug(
-                "Query (k): %g, Hit union (h): %g, DB (N): %g, "
-                "Leaf size (L = N/2^l): %g, Examined (T*L): %g",
-                n, hit_union, db_size, leaf_size, leaf_size * ntrees)
-            self._log.debug("k/L     = %.3f", n / leaf_size)
-            self._log.debug("h/N     = %.3f", hit_union / db_size)
-            self._log.debug("h/L     = %.3f", hit_union / leaf_size)
-            self._log.debug("h/(T*L) = %.3f", hit_union / (leaf_size * ntrees))
+            LOG.debug(
+                f"Query (k): {n}, Hit union (h): {hit_union}, "
+                f"DB (N): {db_size}, Leaf size (L = N/2^l): {leaf_size}, "
+                f"Examined (T*L): {leaf_size * ntrees}")
+            LOG.debug(f"k/L     = {n / leaf_size:.3f}")
+            LOG.debug(f"h/N     = {hit_union / db_size:.3f}")
+            LOG.debug(f"h/L     = {hit_union / leaf_size:.3f}")
+            LOG.debug(f"h/(T*L) = {hit_union / (leaf_size * ntrees):.3f}")
 
             uuids, distances = _exact_query(list(tree_hits))
             order = distances.argsort()
             uuids, distances = zip(
                 *((uuids[oidx], distances[oidx]) for oidx in order))
 
-            self._log.debug("Returning query result of size %g", len(uuids))
+            LOG.debug(f"Returning query result of size {len(uuids)}")
 
             return (tuple(self._descriptor_set.get_many_descriptors(uuids)),
                     tuple(distances))
-
-
-NN_INDEX_CLASS = MRPTNearestNeighborsIndex

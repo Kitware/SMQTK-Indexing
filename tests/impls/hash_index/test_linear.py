@@ -1,11 +1,10 @@
-from __future__ import division, print_function
+from io import BytesIO
 import unittest
 
 import numpy
-from six import BytesIO
 
-from smqtk.algorithms.nn_index.hash_index.linear import LinearHashIndex
-from smqtk.representation.data_element.memory_element import DataMemoryElement
+from smqtk_dataprovider.impls.data_element.memory import DataMemoryElement
+from smqtk_indexing.impls.hash_index.linear import LinearHashIndex
 
 
 class TestLinearHashIndex (unittest.TestCase):
@@ -28,7 +27,7 @@ class TestLinearHashIndex (unittest.TestCase):
 
     def test_from_config_with_cache(self):
         c = LinearHashIndex.get_default_config()
-        c['cache_element']['type'] = 'smqtk.representation.data_element.memory_element.DataMemoryElement'
+        c['cache_element']['type'] = 'smqtk_dataprovider.impls.data_element.memory.DataMemoryElement'
         i = LinearHashIndex.from_config(c)
         self.assertIsInstance(i.cache_element, DataMemoryElement)
         self.assertEqual(i.index, set())
@@ -42,7 +41,7 @@ class TestLinearHashIndex (unittest.TestCase):
 
         # With cache element
         i.cache_element = DataMemoryElement()
-        expected_c['cache_element']['type'] = 'smqtk.representation.data_element.memory_element.DataMemoryElement'
+        expected_c['cache_element']['type'] = 'smqtk_dataprovider.impls.data_element.memory.DataMemoryElement'
         self.assertEqual(i.get_config(), expected_c)
 
     def test_build_index_no_cache(self):

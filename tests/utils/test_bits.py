@@ -1,12 +1,8 @@
-from __future__ import division, print_function
-import random
 import unittest
 
 import numpy
-# noinspection PyUnresolvedReferences
-from six.moves import range
 
-from smqtk.utils import bits
+from smqtk_indexing.utils import bits
 
 
 class TestBitUtils (unittest.TestCase):
@@ -56,30 +52,3 @@ class TestBitUtils (unittest.TestCase):
             bits.int_to_bit_vector_large,
             5, 1
         )
-
-    def test_popcount(self):
-        self.assertEqual(bits.popcount(1), 1)
-        self.assertEqual(bits.popcount(2), 1)
-        self.assertEqual(bits.popcount(3), 2)
-        self.assertEqual(bits.popcount(2 ** 16), 1)
-        self.assertEqual(bits.popcount(2 ** 16 - 1), 16)
-        self.assertEqual(bits.popcount(2 ** 32), 1)
-        self.assertEqual(bits.popcount(2 ** 32 - 1), 32)
-
-    def test_popcount_0(self):
-        self.assertEqual(bits.popcount(0), 0)
-
-    def test_popcount_limits(self):
-        # Make sure documented integer limit is truthful.
-        c = 10000
-        for _ in range(c):
-            # noinspection PyUnresolvedReferences
-            v = random.randint(0, bits.POPCOUNT_VMAX)
-            # Known method to always work based on counting python's binary
-            # string representation.
-            v_bin_count = bin(v).count('1')
-            # Test method
-            v_pop_count = bits.popcount(v)
-
-            self.assertEqual(v_pop_count, v_bin_count,
-                             'popcount failed for integer %d' % v)

@@ -5,28 +5,30 @@ in the base.
 """
 import collections
 import itertools
+import logging
 import multiprocessing
 from typing import Deque, Dict, Hashable, Set
 
 import numpy
-from six.moves import map, zip
 
-from smqtk.algorithms.nn_index import NearestNeighborsIndex
-from smqtk.algorithms.nn_index.hash_index import HashIndex
-from smqtk.algorithms.nn_index.hash_index.linear import LinearHashIndex
-from smqtk.algorithms.nn_index.lsh.functors import LshFunctor
-from smqtk.exceptions import ReadOnlyError
-from smqtk.representation import DescriptorSet, KeyValueStore
-from smqtk.representation.descriptor_element import elements_to_matrix
-from smqtk.utils import metrics
-from smqtk.utils.bits import bit_vector_to_int_large
-from smqtk.utils.cli import ProgressReporter
-from smqtk.utils.configuration import (
+from smqtk_core.configuration import (
     from_config_dict,
     make_default_config,
     to_config_dict
 )
-from smqtk.utils.dict import merge_dict
+from smqtk_core.dict import merge_dict
+from smqtk_dataprovider import KeyValueStore
+from smqtk_dataprovider.exceptions import ReadOnlyError
+from smqtk_descriptors import DescriptorSet
+from smqtk_descriptors.utils import parallel_map
+from smqtk_indexing import HashIndex, LshFunctor, NearestNeighborsIndex
+from smqtk_indexing.impls.hash_index.linear import LinearHashIndex
+from smqtk_indexing.utils import metrics
+from smqtk_indexing.utils.bits import bit_vector_to_int_large
+from smqtk_indexing.utils.cli import ProgressReporter
+
+
+LOG = logging.getLogger(__name__)
 
 
 class LSHNearestNeighborIndex (NearestNeighborsIndex):
@@ -133,8 +135,7 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
                 from_config_dict(merged['hash_index'],
                                  HashIndex.get_impls())
         else:
-            cls.get_logger().debug("No HashIndex impl given. Passing "
-                                   "``None``.")
+            LOG.debug("No HashIndex impl given. Passing ``None``.")
             merged['hash_index'] = None
 
         # remove possible comment added by default generator
@@ -295,14 +296,14 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
                 raise ReadOnlyError("Cannot modify container attributes due "
                                     "to being in read-only mode.")
 
-            self._log.debug("Clearing and adding new descriptor elements")
+            LOG.debug("Clearing and adding new descriptor elements")
             self.descriptor_set.clear()
             self.descriptor_set.add_many_descriptors(descriptors)
 
-            self._log.debug("Generating hash codes")
+            LOG.debug("Generating hash codes")
             hash_vectors: Deque[numpy.ndarray] = collections.deque()
             self.hash2uuids_kvstore.clear()
-            prog_reporter = ProgressReporter(self._log.debug, 1.0).start()
+            prog_reporter = ProgressReporter(LOG.debug, 1.0).start()
             # We just cleared the previous store, so aggregate new kv-mapping
             # in ``kvstore_update`` for single update after loop.
             kvstore_update: Dict[
@@ -319,8 +320,7 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
             del kvstore_update
 
             if self.hash_index is not None:
-                self._log.debug("Clearing and building hash index of type %s",
-                                type(self.hash_index))
+                LOG.debug(f"Clearing and building hash index of type {type(self.hash_index)}")
                 # a build is supposed to clear previous state.
                 self.hash_index.build_index(hash_vectors)
 
@@ -349,11 +349,11 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
             # generation.
             d_for_index, d_for_hashing = itertools.tee(descriptors, 2)
 
-            self._log.debug("Updating descriptor index.")
+            LOG.debug("Updating descriptor index.")
             self.descriptor_set.add_many_descriptors(d_for_index)
 
-            self._log.debug("Generating hash codes for new descriptors")
-            prog_reporter = ProgressReporter(self._log.debug, 1.0).start()
+            LOG.debug("Generating hash codes for new descriptors")
+            prog_reporter = ProgressReporter(LOG.debug, 1.0).start()
             # for updating hash_index
             hash_vectors: Deque[numpy.ndarray] = collections.deque()
             # for updating kv-store after collecting new hash codes
@@ -371,12 +371,12 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
                 prog_reporter.increment_report()
             prog_reporter.report()
 
-            self._log.debug("Updating kv-store with new hash codes")
+            LOG.debug("Updating kv-store with new hash codes")
             self.hash2uuids_kvstore.add_many(kvstore_update)
             del kvstore_update
 
             if self.hash_index is not None:
-                self._log.debug("Updating hash index structure.")
+                LOG.debug("Updating hash index structure.")
                 self.hash_index.update_index(hash_vectors)
 
     def _remove_from_index(self, uids):
@@ -404,7 +404,7 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
             #   recorded association set.
             # - `get_many_descriptors` fails when bad UIDs are provided
             #   (KeyError).
-            self._log.debug("Removing hash2uid entries for UID's descriptors")
+            LOG.debug("Removing hash2uid entries for UID's descriptors")
             h_vectors: Deque[numpy.ndarray] = collections.deque()
             h_ints: Deque[int] = collections.deque()
             for d in self.descriptor_set.get_many_descriptors(uids):
@@ -432,9 +432,9 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
                     del kvs_update[h_int]
                     kvs_remove.add(h_int)
                     hashes_for_removal.append(h_vec)
-            self._log.debug("Updating hash2uuids: modified relations")
+            LOG.debug("Updating hash2uuids: modified relations")
             self.hash2uuids_kvstore.add_many(kvs_update)
-            self._log.debug("Updating hash2uuids: removing empty hash keys")
+            LOG.debug("Updating hash2uuids: removing empty hash keys")
             self.hash2uuids_kvstore.remove_many(kvs_remove)
             del kvs_update, kvs_remove
 
@@ -465,7 +465,7 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
         :rtype: (tuple[smqtk.representation.DescriptorElement], tuple[float])
 
         """
-        self._log.debug("generating hash for descriptor")
+        LOG.debug("generating hash for descriptor")
         d_v = d.vector()
         d_h = self.lsh_functor.get_hash(d_v)
 
@@ -473,7 +473,7 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
             return self._distance_function(d_v, d2_v)
 
         with self._model_lock:
-            self._log.debug("getting near hashes")
+            LOG.debug("getting near hashes")
             hi = self.hash_index
             if hi is None:
                 # Make on-the-fly linear index
@@ -483,7 +483,7 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
                 hi.index = set(self.hash2uuids_kvstore.keys())
             near_hashes, _ = hi.nn(d_h, n)
 
-            self._log.debug("getting UUIDs of descriptors for nearby hashes")
+            LOG.debug("getting UUIDs of descriptors for nearby hashes")
             neighbor_uuids = []
             for h_int in map(bit_vector_to_int_large, near_hashes):
                 # If descriptor hash not in our map, we effectively skip it.
@@ -492,25 +492,25 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
                 near_uuids = self.hash2uuids_kvstore.get(h_int, set())
                 # Accumulate matching descriptor UUIDs to a list.
                 neighbor_uuids.extend(near_uuids)
-            self._log.debug("-- matched %d UUIDs", len(neighbor_uuids))
+            LOG.debug("-- matched %d UUIDs", len(neighbor_uuids))
 
-            self._log.debug("getting descriptors for neighbor_uuids")
+            LOG.debug("getting descriptors for neighbor_uuids")
             neighbors = \
                 list(self.descriptor_set.get_many_descriptors(neighbor_uuids))
 
         # Done with model parts at this point, so releasing lock.
 
-        self._log.debug("ordering descriptors via distance method '%s'",
-                        self.distance_method)
-        self._log.debug('-- getting element vectors')
-        neighbor_vectors = elements_to_matrix(neighbors,
-                                              report_interval=1.0)
-        self._log.debug('-- calculating distances')
+        LOG.debug(f"ordering descriptors via distance method {self.distance_method}")
+        LOG.debug('-- getting element vectors')
+        neighbor_vectors = numpy.asarray(list(
+            parallel_map(lambda d_: d_.vector(), neighbors)
+        ))
+        LOG.debug('-- calculating distances')
         distances = list(map(comp_descr_dist, neighbor_vectors))
-        self._log.debug('-- ordering')
+        LOG.debug('-- ordering')
         ordered = sorted(zip(neighbors, distances),
                          key=lambda p: p[1])
-        self._log.debug('-- slicing top n=%d', n)
+        LOG.debug(f'-- slicing top n={n}')
         return list(zip(*(ordered[:n])))
 
 

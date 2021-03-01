@@ -1,24 +1,24 @@
 import heapq
+from io import BytesIO
 import threading
-
-from six import BytesIO
-from six.moves import map
 
 import numpy
 
-from smqtk.algorithms.nn_index.hash_index import HashIndex
-from smqtk.representation import DataElement
-from smqtk.utils.bits import (
-    bit_vector_to_int_large,
-    int_to_bit_vector_large,
-)
-from smqtk.utils.configuration import (
+from smqtk_core.configuration import (
     from_config_dict,
     make_default_config,
     to_config_dict
 )
-from smqtk.utils.dict import merge_dict
-from smqtk.utils.metrics import hamming_distance
+from smqtk_core.dict import merge_dict
+
+from smqtk_dataprovider import DataElement
+
+from smqtk_indexing.interfaces.hash_index import HashIndex
+from smqtk_indexing.utils.bits import (
+    bit_vector_to_int_large,
+    int_to_bit_vector_large,
+)
+from smqtk_indexing.utils.metrics import hamming_distance
 
 
 class LinearHashIndex (HashIndex):

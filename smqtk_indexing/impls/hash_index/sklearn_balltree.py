@@ -1,19 +1,32 @@
+from io import BytesIO
+import logging
 import threading
 from typing import cast, List, Optional
+import warnings
 
 import numpy as np
-from six import BytesIO, next
-from six.moves import map
-from sklearn.neighbors import BallTree, DistanceMetric
 
-from smqtk.algorithms.nn_index.hash_index import HashIndex
-from smqtk.representation import DataElement
-from smqtk.utils.configuration import (
+from smqtk_core.configuration import (
     from_config_dict,
     make_default_config,
     to_config_dict
 )
-from smqtk.utils.dict import merge_dict
+from smqtk_core.dict import merge_dict
+from smqtk_dataprovider import DataElement
+from smqtk_indexing.interfaces.hash_index import HashIndex
+
+
+LOG = logging.getLogger(__name__)
+
+
+try:
+    from sklearn.neighbors import BallTree, DistanceMetric
+except ImportError:
+    warnings.warn(
+        "Failed to import optional package scikit-learn, "
+        "SkLearnBallTreeHashIndex implementation will not be available.",
+    )
+    BallTree = DistanceMetric = None
 
 
 class SkLearnBallTreeHashIndex (HashIndex):
@@ -142,7 +155,7 @@ class SkLearnBallTreeHashIndex (HashIndex):
                     raise ValueError("Configured cache element (%s) is read-"
                                      "only." % self.cache_element)
                 if self.bt is not None:
-                    self._log.debug("Saving model: %s", self.cache_element)
+                    LOG.debug("Saving model: %s", self.cache_element)
                     # Saving BT component matrices separately.
                     # - Not saving distance function because its always going
                     #   to be hamming distance (see ``build_index``).
@@ -161,7 +174,7 @@ class SkLearnBallTreeHashIndex (HashIndex):
                              node_bounds_arr=s[3],
                              tail=tail)
                     self.cache_element.set_bytes(buff.getvalue())
-                    self._log.debug("Saving model: Done")
+                    LOG.debug("Saving model: Done")
                 else:
                     # No ball tree, empty cache.
                     self.cache_element.set_bytes(b'')
@@ -174,8 +187,7 @@ class SkLearnBallTreeHashIndex (HashIndex):
         """
         with self._model_lock:
             if self.cache_element and not self.cache_element.is_empty():
-                self._log.debug("Loading model from cache: %s",
-                                self.cache_element)
+                LOG.debug(f"Loading model from cache: {self.cache_element}")
                 buff = BytesIO(self.cache_element.get_bytes())
                 # noinspection PyTypeChecker
                 with np.load(buff, allow_pickle=True) as cache:
@@ -189,7 +201,7 @@ class SkLearnBallTreeHashIndex (HashIndex):
                 #: :type: sklearn.neighbors.BallTree
                 self.bt = BallTree.__new__(BallTree)
                 self.bt.__setstate__(s)
-                self._log.debug("Loading mode: Done")
+                LOG.debug("Loading mode: Done")
 
     def count(self):
         with self._model_lock:
@@ -230,7 +242,7 @@ class SkLearnBallTreeHashIndex (HashIndex):
         :type hashes: collections.abc.Iterable[np.ndarray[bool]]
         """
         with self._model_lock:
-            self._log.debug("Building ball tree")
+            LOG.debug("Building ball tree")
             if self.random_seed is not None:
                 np.random.seed(self.random_seed)
             # BallTree can't take iterables, so catching input in a set of
@@ -269,7 +281,7 @@ class SkLearnBallTreeHashIndex (HashIndex):
             else:
                 indexed_hash_vectors = self.bt.data
             # Build a new index as normal with the union of source data.
-            self._log.debug("Updating index by rebuilding with union.")
+            LOG.debug("Updating index by rebuilding with union.")
             self._build_bt_internal(
                 np.concatenate([indexed_hash_vectors, new_hashes], 0)
             )

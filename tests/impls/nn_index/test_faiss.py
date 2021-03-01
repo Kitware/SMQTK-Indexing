@@ -1,24 +1,21 @@
 import random
 import unittest
-
 import unittest.mock as mock
+
 import numpy as np
 import pytest
-import six
-from six.moves import range, zip
 
-from smqtk.algorithms import NearestNeighborsIndex
-from smqtk.algorithms.nn_index.faiss import FaissNearestNeighborsIndex
-from smqtk.exceptions import ReadOnlyError
-from smqtk.representation.data_element.memory_element import (
-    DataMemoryElement,
-)
-from smqtk.representation.descriptor_element.local_elements import (
-    DescriptorMemoryElement,
-)
-from smqtk.representation.descriptor_set.memory import MemoryDescriptorSet
-from smqtk.representation.key_value.memory import MemoryKeyValueStore
-from smqtk.utils.configuration import configuration_test_helper
+from smqtk_core.configuration import configuration_test_helper
+
+from smqtk_dataprovider.exceptions import ReadOnlyError
+from smqtk_dataprovider.impls.data_element.memory import DataMemoryElement
+from smqtk_dataprovider.impls.key_value_store.memory import MemoryKeyValueStore
+
+from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryElement
+from smqtk_descriptors.impls.descriptor_set.memory import MemoryDescriptorSet
+
+from smqtk_indexing import NearestNeighborsIndex
+from smqtk_indexing.impls.nn_index.faiss import FaissNearestNeighborsIndex
 
 
 @pytest.mark.skipif(not FaissNearestNeighborsIndex.is_usable(),
@@ -69,7 +66,7 @@ class TestFAISSIndex (unittest.TestCase):
             assert isinstance(inst._index_element, DataMemoryElement)
             assert isinstance(inst._index_param_element, DataMemoryElement)
             assert inst.read_only is True
-            assert isinstance(inst.factory_string, six.string_types)
+            assert isinstance(inst.factory_string, str)
             assert inst.factory_string == 'some fact str'
             assert inst._ivf_nprobe == 88
             assert inst._use_gpu is False
@@ -132,14 +129,14 @@ class TestFAISSIndex (unittest.TestCase):
     def test_configuration_null_persistence(self):
         # Make configuration based on default
         c = FaissNearestNeighborsIndex.get_default_config()
-        c['descriptor_set']['type'] = 'smqtk.representation.descriptor_set.memory.MemoryDescriptorSet'
-        c['idx2uid_kvs']['type'] = 'smqtk.representation.key_value.memory.MemoryKeyValueStore'
-        c['uid2idx_kvs']['type'] = 'smqtk.representation.key_value.memory.MemoryKeyValueStore'
+        c['descriptor_set']['type'] = 'smqtk_descriptors.impls.descriptor_set.memory.MemoryDescriptorSet'
+        c['idx2uid_kvs']['type'] = 'smqtk_dataprovider.impls.key_value_store.memory.MemoryKeyValueStore'
+        c['uid2idx_kvs']['type'] = 'smqtk_dataprovider.impls.key_value_store.memory.MemoryKeyValueStore'
 
         # # Build based on configuration
         index = FaissNearestNeighborsIndex.from_config(c)
         self.assertEqual(index.factory_string, 'IDMap,Flat')
-        self.assertIsInstance(index.factory_string, six.string_types)
+        self.assertIsInstance(index.factory_string, str)
 
         # Test that constructing a new instance from ``index``'s config
         # yields an index with the same configuration (idempotent).
@@ -554,12 +551,12 @@ class TestFAISSIndex (unittest.TestCase):
 
         # Shouldn't do anything for non-IVF indices
         # -- IDMap,HNSW32
-        index = self._make_inst(factory_string="IDMap,HNSW32",
+        index = self._make_inst(factory_string="IDMap,HNSW32,Flat",
                                 ivf_nprobe=2)
         index.build_index(descr_elems)
         q_results, q_dists = index.nn(descr_elems[0], n=64)
         # -- PCAR8,IDMap,HNSW32
-        index = self._make_inst(factory_string="PCAR8,IDMap,HNSW32",
+        index = self._make_inst(factory_string="PCAR8,IDMap,HNSW32,Flat",
                                 ivf_nprobe=2)
         index.build_index(descr_elems)
         q_results, q_dists = index.nn(descr_elems[0], n=64)

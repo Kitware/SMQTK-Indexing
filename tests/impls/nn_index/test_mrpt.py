@@ -3,15 +3,16 @@ import os.path as osp
 import unittest
 
 import numpy as np
-from six.moves import range, zip
 
-from smqtk.representation.descriptor_element.local_elements import \
-    DescriptorMemoryElement
-from smqtk.algorithms import NearestNeighborsIndex
-from smqtk.algorithms.nn_index.mrpt import MRPTNearestNeighborsIndex
-from smqtk.exceptions import ReadOnlyError
-from smqtk.representation.descriptor_set.memory import MemoryDescriptorSet
-from smqtk.utils.configuration import configuration_test_helper
+from smqtk_core.configuration import configuration_test_helper
+
+from smqtk_dataprovider.exceptions import ReadOnlyError
+
+from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryElement
+from smqtk_descriptors.impls.descriptor_set.memory import MemoryDescriptorSet
+
+from smqtk_indexing import NearestNeighborsIndex
+from smqtk_indexing.impls.nn_index.mrpt import MRPTNearestNeighborsIndex
 
 
 class TestMRPTIndex (unittest.TestCase):

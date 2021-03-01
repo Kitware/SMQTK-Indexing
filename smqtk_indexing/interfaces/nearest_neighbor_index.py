@@ -4,11 +4,11 @@ Interface for generic element-wise nearest-neighbor computation.
 
 import abc
 
-from smqtk.algorithms import SmqtkAlgorithm
-from smqtk.utils import check_empty_iterable
+from smqtk_core import Configurable, Pluggable
+from smqtk_indexing.utils.iter_validation import check_empty_iterable
 
 
-class NearestNeighborsIndex (SmqtkAlgorithm):
+class NearestNeighborsIndex (Configurable, Pluggable):
     """
     Common interface for descriptor-based nearest-neighbor computation over a
     built index of descriptors.

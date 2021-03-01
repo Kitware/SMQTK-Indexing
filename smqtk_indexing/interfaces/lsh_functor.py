@@ -3,10 +3,10 @@ Interface and plugin getter for LSH algorithm hash generation functors.
 """
 import abc
 
-from smqtk.algorithms import SmqtkAlgorithm
+from smqtk_core import Configurable, Pluggable
 
 
-class LshFunctor (SmqtkAlgorithm):
+class LshFunctor (Configurable, Pluggable):
     """
     Locality-sensitive hashing functor interface.
 

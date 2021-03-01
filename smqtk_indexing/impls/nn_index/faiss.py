@@ -1,25 +1,25 @@
 from copy import deepcopy
+import logging
 import json
 import multiprocessing
 import numpy as np
 import os
-import six
 import tempfile
 from typing import Dict
 import warnings
 
-from smqtk.algorithms.nn_index import NearestNeighborsIndex
-from smqtk.exceptions import ReadOnlyError
-from smqtk.representation import (
+from smqtk_core.configuration import \
+    make_default_config, from_config_dict, to_config_dict
+from smqtk_core.dict import merge_dict
+from smqtk_dataprovider import (
     DataElement,
-    DescriptorSet,
     KeyValueStore,
 )
-from smqtk.representation.descriptor_element import DescriptorElement
-from smqtk.utils import metrics
-from smqtk.utils.configuration import \
-    make_default_config, from_config_dict, to_config_dict
-from smqtk.utils.dict import merge_dict
+from smqtk_descriptors import DescriptorElement, DescriptorSet
+from smqtk_dataprovider.exceptions import ReadOnlyError
+from smqtk_indexing import NearestNeighborsIndex
+from smqtk_indexing.utils import metrics
+
 
 # Requires FAISS bindings
 try:
@@ -28,6 +28,9 @@ except ImportError as ex:
     warnings.warn("FaissNearestNeighborsIndex is not usable due to the faiss "
                   "module not being importable: {}".format(str(ex)))
     faiss = None
+
+
+LOG = logging.getLogger(__name__)
 
 
 # TODO: Add metric constructor option, append to ``faiss.METRIC_{}`` for
@@ -65,7 +68,7 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
     """
 
     @staticmethod
-    def gpu_supported():
+    def gpu_supported() -> bool:
         """
         :return: If FAISS seems to have GPU support or not.
         :rtype: bool
@@ -248,7 +251,7 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
         """
         super(FaissNearestNeighborsIndex, self).__init__()
 
-        if not isinstance(factory_string, six.string_types):
+        if not isinstance(factory_string, str):
             raise ValueError('The factory_string parameter must be a '
                              'recognized string type.')
 
@@ -343,7 +346,7 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
         # If we're to use a GPU index and what we're given isn't already a GPU
         # index.
         if self._use_gpu and not isinstance(faiss_index, faiss.GpuIndex):
-            self._log.debug("-> GPU-enabling index")
+            LOG.debug("-> GPU-enabling index")
             # New resources
             self._gpu_resources = faiss.StandardGpuResources()
             faiss_index = faiss.index_cpu_to_gpu(faiss.StandardGpuResources(),
@@ -366,7 +369,7 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
         :return: Constructed index.
         :rtype: faiss.Index | faiss.GpuIndex
         """
-        self._log.debug("Creating index by factory: '%s'", factory_string)
+        LOG.debug(f"Creating index by factory: '{factory_string}'")
         index = faiss.index_factory(d, factory_string, metric_type_int)
         return self._convert_index(index)
 
@@ -408,12 +411,13 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
                 if not (
                         len(self._descriptor_set) == len(self._uid2idx_kvs) ==
                         len(self._idx2uid_kvs) == self._faiss_index.ntotal):
-                    self._log.warning(
+                    LOG.warning(
                         "Not all of our storage elements agree on size: "
                         "len(dset, uid2idx, idx2uid, faiss_idx) = "
-                        "(%d, %d, %d, %d)"
-                        % (len(self._descriptor_set), len(self._uid2idx_kvs),
-                           len(self._idx2uid_kvs), self._faiss_index.ntotal)
+                        f"({len(self._descriptor_set)},"
+                        f" {len(self._uid2idx_kvs)},"
+                        f" {len(self._idx2uid_kvs)},"
+                        f" {self._faiss_index.ntotal})"
                     )
 
     def _save_faiss_model(self):
@@ -427,7 +431,7 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
                         self._index_param_element and
                         self._index_param_element.writable())
             if writable:
-                self._log.debug("Storing index: %s", self._index_element)
+                LOG.debug(f"Storing index: {self._index_element}")
                 # FAISS wants to write to a file, so make a temp file, then
                 # read it in, putting bytes into element.
                 fd, fp = tempfile.mkstemp()
@@ -480,7 +484,7 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
         if self.read_only:
             raise ReadOnlyError("Cannot modify read-only index.")
 
-        self._log.info("Building new FAISS index")
+        LOG.info("Building new FAISS index")
 
         # We need to fork the iterator, so stick the elements in a list
         desc_list = list(descriptors)
@@ -492,14 +496,14 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
 
         faiss_index = self._index_factory_wrapper(d, self.factory_string,
                                                   self._metric_type_const)
-        self._log.info("Training FAISS index")
+        LOG.info("Training FAISS index")
         # noinspection PyArgumentList
         faiss_index.train(data)
         # TODO(john.moeller): This will raise an exception on flat indexes.
         # There's a solution which involves wrapping the index in an
         # IndexIDMap, but it doesn't work because of a bug in FAISS. So for
         # now we don't support flat indexes.
-        self._log.info("Adding data to index")
+        LOG.info("Adding data to index")
         # noinspection PyArgumentList
         faiss_index.add_with_ids(data, idx_ids)
 
@@ -510,10 +514,9 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
 
         with self._model_lock:
             self._faiss_index = faiss_index
-            self._log.info("FAISS index has been constructed with %d "
-                           "vectors", n)
+            LOG.info(f"FAISS index has been constructed with {n} vectors")
 
-            self._log.debug("Clearing and adding new descriptor elements")
+            LOG.debug("Clearing and adding new descriptor elements")
             self._descriptor_set.clear()
             self._descriptor_set.add_many_descriptors(desc_list)
             assert len(self._descriptor_set) == n, \
@@ -562,7 +565,7 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
             self._build_index(descriptors)
             return
 
-        self._log.debug('Updating FAISS index')
+        LOG.debug('Updating FAISS index')
 
         with self._model_lock:
             # Remove any uids which have already been indexed. This gracefully
@@ -579,8 +582,8 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
                 else:
                     desc_list.append(descriptor_)
             if not desc_list:
-                self._log.info("No new descriptors provided not already "
-                               "present in this index. No update necessary.")
+                LOG.info("No new descriptors provided not already present in "
+                         "this index. No update necessary.")
                 return
             data, new_uuids = self._descriptors_to_matrix(desc_list)
 
@@ -598,10 +601,9 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
             self._faiss_index.add_with_ids(data, new_ids)
             assert self._faiss_index.ntotal == old_ntotal + n, \
                 "New FAISS index size doesn't match old + data size"
-            self._log.info("FAISS index has been updated with %d"
-                           " new vectors", n)
+            LOG.info(f"FAISS index has been updated with {n} new vectors")
 
-            self._log.debug("Adding new descriptor elements")
+            LOG.debug("Adding new descriptor elements")
             self._descriptor_set.add_many_descriptors(desc_list)
             assert len(self._descriptor_set) == old_ntotal + n, \
                 "New descriptor set size doesn't match old + data size"
@@ -677,9 +679,8 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
         data = np.vstack(
             DescriptorElement.get_many_vectors(descriptors)
         ).astype(np.float32)
-        self._log.info("data shape, type: %s, %s",
-                       data.shape, data.dtype)
-        self._log.info("# uuids: %d", len(new_uuids))
+        LOG.info(f"data shape, type: {data.shape}, {data.dtype}")
+        LOG.info(f"# uuids: {len(new_uuids)}")
         return data, new_uuids
 
     def count(self):
@@ -724,16 +725,15 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
                 ps.set_index_parameter(
                     idx, 'nprobe', self._ivf_nprobe
                 )
-                self._log.debug("Set nprobe={} to index, instance of {}"
-                                .format(self._ivf_nprobe, idx_name))
+                LOG.debug(f"Set nprobe={self._ivf_nprobe} to index, instance "
+                          f"of {idx_name}")
                 return True
             except RuntimeError as sip_ex:
                 s_ex = str(sip_ex)
                 if "could not set parameter nprobe" in s_ex:
                     # OK, index does not support nprobe parameter
-                    self._log.debug("Current index ({}) does not support the "
-                                    "nprobe parameter."
-                                    .format(idx_name))
+                    LOG.debug(f"Current index ({idx_name}) does not "
+                              f"support the nprobe parameter.")
                     return False
                 # Otherwise re-raise
                 raise
@@ -757,9 +757,8 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
         :rtype: (tuple[smqtk.representation.DescriptorElement], tuple[float])
 
         """
-        log = self._log
         q = d.vector()[np.newaxis, :].astype(np.float32)
-        log.debug("Received query for %d nearest neighbors", n)
+        LOG.debug("Received query for %d nearest neighbors", n)
 
         with self._model_lock:
             if self._faiss_index is None:
@@ -778,21 +777,21 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
             # s_id (the FAISS index indices) can equal -1 if fewer than the
             # requested number of nearest neighbors is returned. In this case,
             # eliminate the -1 entries
-            self._log.debug("Getting descriptor UIDs from idx2uid mapping.")
+            LOG.debug("Getting descriptor UIDs from idx2uid mapping.")
             uuids = list(self._idx2uid_kvs.get_many(
                 filter(lambda s_id_: s_id_ >= 0, s_ids)
             ))
             if len(uuids) < n:
-                warnings.warn("Less than n={} neighbors were retrieved from "
+                warnings.warn(f"Less than n={n} neighbors were retrieved from "
                               "the FAISS index instance. Maybe increase "
-                              "nprobe if this is an IVF index?"
-                              .format(n), RuntimeWarning)
+                              "nprobe if this is an IVF index?",
+                              RuntimeWarning)
 
             descriptors = tuple(
                 self._descriptor_set.get_many_descriptors(uuids)
             )
 
-        log.debug("Min and max FAISS distances: %g, %g",
+        LOG.debug("Min and max FAISS distances: %g, %g",
                   min(s_dists), max(s_dists))
 
         d_vectors = np.vstack(
@@ -800,15 +799,12 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
         )
         d_dists = metrics.euclidean_distance(d_vectors, q)
 
-        log.debug("Min and max descriptor distances: %g, %g",
+        LOG.debug("Min and max descriptor distances: %g, %g",
                   min(d_dists), max(d_dists))
 
         order = d_dists.argsort()
         uuids, d_dists = zip(*((uuids[oidx], d_dists[oidx]) for oidx in order))
 
-        log.debug("Returning query result of size %g", len(uuids))
+        LOG.debug("Returning query result of size %g", len(uuids))
 
         return descriptors, tuple(d_dists)
-
-
-SMQTK_PLUGIN_CLASS = FaissNearestNeighborsIndex

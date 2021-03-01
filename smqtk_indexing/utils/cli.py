@@ -11,8 +11,7 @@ import threading
 import time
 import warnings
 
-from smqtk.utils.base_object import SmqtkObject
-from smqtk.utils.dict import merge_dict
+from smqtk_core.dict import merge_dict
 
 
 def initialize_logging(logger, stream_level=logging.WARNING,
@@ -141,7 +140,7 @@ def output_config(output_path, config_dict, log=None, overwrite=False,
             sys.exit(0)
 
 
-class ProgressReporter (SmqtkObject):
+class ProgressReporter:
     """
     Helper utility for reporting the state of a loop and the rate at which
     looping is occurring based on lapsed wall-time and a given reporting

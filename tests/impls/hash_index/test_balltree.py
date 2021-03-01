@@ -1,14 +1,18 @@
 import unittest
-
 import unittest.mock as mock
+
 import numpy as np
+import pytest
 
-from smqtk.algorithms.nn_index.hash_index.sklearn_balltree import \
-    SkLearnBallTreeHashIndex
-from smqtk.representation.data_element.memory_element import DataMemoryElement
-from smqtk.utils.bits import int_to_bit_vector_large
+from smqtk_dataprovider.impls.data_element.memory import DataMemoryElement
+from smqtk_indexing.impls.hash_index.sklearn_balltree import SkLearnBallTreeHashIndex
+from smqtk_indexing.utils.bits import int_to_bit_vector_large
 
 
+@pytest.mark.skipif(
+    not SkLearnBallTreeHashIndex.is_usable(),
+    reason="SkLearnBallTreeHashIndex is usable in the current environment."
+)
 class TestBallTreeHashIndex (unittest.TestCase):
 
     def test_is_usable(self):
@@ -65,7 +69,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
             c
         )
         # With non-null cache element
-        c['cache_element']['type'] = 'smqtk.representation.data_element.memory_element.DataMemoryElement'
+        c['cache_element']['type'] = 'smqtk_dataprovider.impls.data_element.memory.DataMemoryElement'
         self.assertEqual(
             SkLearnBallTreeHashIndex.from_config(c).get_config(),
             c
@@ -293,8 +297,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
             i.nn, [0, 0, 0]
         )
 
-    @mock.patch('smqtk.algorithms.nn_index.hash_index.sklearn_balltree.np'
-                '.savez')
+    @mock.patch('smqtk_indexing.impls.hash_index.sklearn_balltree.np.savez')
     def test_save_model_no_cache(self, m_savez):
         bt = SkLearnBallTreeHashIndex()
         m = np.random.randint(0, 2, 1000 * 256).reshape(1000, 256)
@@ -312,8 +315,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
             bt._build_bt_internal, m
         )
 
-    @mock.patch('smqtk.algorithms.nn_index.hash_index.sklearn_balltree.np'
-                '.savez')
+    @mock.patch('smqtk_indexing.impls.hash_index.sklearn_balltree.np.savez')
     def test_save_model_with_cache(self, m_savez):
         cache_element = DataMemoryElement()
         bt = SkLearnBallTreeHashIndex(cache_element, random_seed=0)

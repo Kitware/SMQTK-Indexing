@@ -3,7 +3,7 @@ import unittest
 
 import unittest.mock as mock
 
-from smqtk.algorithms.nn_index.lsh.functors import LshFunctor
+from smqtk_indexing.interfaces.lsh_functor import LshFunctor
 
 
 class DummyLshFunctor (LshFunctor):

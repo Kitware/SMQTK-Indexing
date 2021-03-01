@@ -7,21 +7,24 @@ References/Resources:
 """
 from collections.abc import Sequence
 from copy import deepcopy
+from io import BytesIO
 import logging
 
 import numpy
-from six import BytesIO
 
-from smqtk.algorithms.nn_index.lsh.functors import LshFunctor
-from smqtk.representation import DataElement
-from smqtk.representation.descriptor_element import elements_to_matrix
-from smqtk.utils.cli import ProgressReporter
-from smqtk.utils.configuration import (
+from smqtk_core.configuration import (
     from_config_dict,
     make_default_config,
     to_config_dict
 )
-from smqtk.utils.dict import merge_dict
+from smqtk_core.dict import merge_dict
+from smqtk_dataprovider import DataElement
+from smqtk_descriptors.utils import parallel_map
+from smqtk_indexing import LshFunctor
+from smqtk_indexing.utils.cli import ProgressReporter
+
+
+LOG = logging.getLogger(__name__)
 
 
 class ItqFunctor (LshFunctor):
@@ -273,10 +276,9 @@ class ItqFunctor (LshFunctor):
         r = u11[:, :bit]
 
         # ITQ to find optimal rotation
-        self._log.debug("ITQ iterations to determine optimal rotation: %d",
-                        n_iter)
+        LOG.debug(f"ITQ iterations to determine optimal rotation: {n_iter}")
         for i in range(n_iter):
-            self._log.debug("ITQ iter %d", i + 1)
+            LOG.debug("ITQ iter %d", i + 1)
             # TODO: @numba.jit decorate
             z = numpy.dot(v, r)
             ux = numpy.ones(z.shape) * (-1)
@@ -321,11 +323,11 @@ class ItqFunctor (LshFunctor):
             raise RuntimeError("Model components have already been loaded.")
 
         dbg_report_interval = 1.0
-        dbg_report = self.get_logger().getEffectiveLevel() <= logging.DEBUG
+        dbg_report = LOG.getEffectiveLevel() <= logging.DEBUG
         if not isinstance(descriptors, Sequence):
-            self._log.info("Creating sequence from iterable")
+            LOG.info("Creating sequence from iterable")
             descriptors_l = []
-            pr = ProgressReporter(self._log.debug, dbg_report_interval).start()
+            pr = ProgressReporter(LOG.debug, dbg_report_interval).start()
             for d in descriptors:
                 descriptors_l.append(d)
                 dbg_report and pr.increment_report()
@@ -337,22 +339,22 @@ class ItqFunctor (LshFunctor):
                              "smaller than requested due to PCA decomposition "
                              "result being bound by number of features.")
 
-        self._log.info("Creating matrix of descriptors for fitting")
-        x = elements_to_matrix(descriptors,
-                               report_interval=dbg_report_interval,
-                               use_multiprocessing=use_multiprocessing)
-        self._log.debug("descriptor matrix shape: %s", x.shape)
+        LOG.info("Creating matrix of descriptors for fitting")
+        x = numpy.asarray(list(
+            parallel_map(lambda d_: d_.vector(), descriptors,
+                         use_multiprocessing=use_multiprocessing)
+        ))
+        LOG.debug("descriptor matrix shape: %s", x.shape)
 
-        self._log.debug("Info normalizing descriptors by factor: %s",
-                        self.normalize)
+        LOG.debug(f"Info normalizing descriptors by factor: {self.normalize}")
         x = self._norm_vector(x)
 
-        self._log.info("Centering data")
+        LOG.info("Centering data")
         self.mean_vec = numpy.mean(x, axis=0)
         x -= self.mean_vec
 
-        self._log.info("Computing PCA transformation")
-        self._log.debug("-- computing covariance")
+        LOG.info("Computing PCA transformation")
+        LOG.debug("-- computing covariance")
         # ``cov`` wants each row to be a feature and each column an observation
         # of those features. Thus, each column should be a descriptor vector,
         # thus we need the transpose here.
@@ -360,33 +362,32 @@ class ItqFunctor (LshFunctor):
 
         # Direct translation from UNC matlab code
         # - eigen vectors are the columns of ``pc``
-        self._log.debug('-- computing linalg.eig')
+        LOG.debug('-- computing linalg.eig')
         l, pc = numpy.linalg.eig(c)
-        self._log.debug('-- ordering eigen vectors by descending eigen '
-                        'value')
+        LOG.debug('-- ordering eigen vectors by descending eigen value')
 
         # # Harry translation of original matlab code
         # # - Uses singular values / vectors, not eigen
         # # - singular vectors are the columns of pc
-        # self._log.debug('-- computing linalg.svd')
+        # LOG.debug('-- computing linalg.svd')
         # pc, l, _ = numpy.linalg.svd(c)
-        # self._log.debug('-- ordering singular vectors by descending '
+        # LOG.debug('-- ordering singular vectors by descending '
         #                 'singular value')
 
         # Same ordering method for both eig/svd sources.
         l_pc_ordered = sorted(zip(l, pc.transpose()), key=lambda _p: _p[0],
                               reverse=True)
 
-        self._log.debug("-- top vector extraction")
+        LOG.debug("-- top vector extraction")
         # Only keep the top ``bit_length`` vectors after ordering by descending
         # value magnitude.
         # - Transposing vectors back to column-vectors.
         pc_top = numpy.array([p[1] for p in l_pc_ordered[:self.bit_length]])\
             .transpose()
-        self._log.debug("-- project centered data by PC matrix")
+        LOG.debug("-- project centered data by PC matrix")
         v = numpy.dot(x, pc_top)
 
-        self._log.info("Performing ITQ to find optimal rotation")
+        LOG.info("Performing ITQ to find optimal rotation")
         c, self.rotation = self._find_itq_rotation(v, self.itq_iterations)
         # De-adjust rotation with PC vector
         self.rotation = numpy.dot(pc_top, self.rotation)

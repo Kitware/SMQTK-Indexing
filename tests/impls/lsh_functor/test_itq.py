@@ -1,15 +1,13 @@
+from io import BytesIO
 from math import sqrt
 import unittest
 
 import numpy
-import six
 
-from smqtk.algorithms.nn_index.lsh.functors.itq import ItqFunctor
-from smqtk.representation.data_element.memory_element import \
-    DataMemoryElement, BYTES_CONFIG_ENCODING
-from smqtk.representation.descriptor_element.local_elements import \
-    DescriptorMemoryElement
-from smqtk.utils.dict import merge_dict
+from smqtk_core.dict import merge_dict
+from smqtk_dataprovider.impls.data_element.memory import DataMemoryElement, BYTES_CONFIG_ENCODING
+from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryElement
+from smqtk_indexing.impls.lsh_functor.itq import ItqFunctor
 
 
 class TestItqFunctor (unittest.TestCase):
@@ -28,13 +26,13 @@ class TestItqFunctor (unittest.TestCase):
         expected_mean_vec = numpy.array([1, 2, 3])
         expected_rotation = numpy.eye(3)
 
-        expected_mean_vec_bytes = six.BytesIO()
+        expected_mean_vec_bytes = BytesIO()
         # noinspection PyTypeChecker
         numpy.save(expected_mean_vec_bytes, expected_mean_vec)
         expected_mean_vec_str = \
             expected_mean_vec_bytes.getvalue().decode(BYTES_CONFIG_ENCODING)
 
-        expected_rotation_bytes = six.BytesIO()
+        expected_rotation_bytes = BytesIO()
         # noinspection PyTypeChecker
         numpy.save(expected_rotation_bytes, expected_rotation)
         expected_rotation_str = \
@@ -42,16 +40,16 @@ class TestItqFunctor (unittest.TestCase):
 
         new_parts = {
             'mean_vec_cache': {
-                'smqtk.representation.data_element.memory_element.DataMemoryElement': {
+                'smqtk_dataprovider.impls.data_element.memory.DataMemoryElement': {
                     'bytes': expected_mean_vec_str
                 },
-                'type': 'smqtk.representation.data_element.memory_element.DataMemoryElement'
+                'type': 'smqtk_dataprovider.impls.data_element.memory.DataMemoryElement'
             },
             'rotation_cache': {
-                'smqtk.representation.data_element.memory_element.DataMemoryElement': {
+                'smqtk_dataprovider.impls.data_element.memory.DataMemoryElement': {
                     'bytes': expected_rotation_str
                 },
-                'type': 'smqtk.representation.data_element.memory_element.DataMemoryElement'
+                'type': 'smqtk_dataprovider.impls.data_element.memory.DataMemoryElement'
             },
             'bit_length': 153,
             'itq_iterations': 7,
@@ -120,8 +118,7 @@ class TestItqFunctor (unittest.TestCase):
         self.assertEqual(c['itq_iterations'], 6)
         self.assertEqual(c['normalize'], 7)
         self.assertEqual(c['random_seed'], 8)
-        dme_key = ('smqtk.representation.data_element.memory_element'
-                   '.DataMemoryElement')
+        dme_key = 'smqtk_dataprovider.impls.data_element.memory.DataMemoryElement'
         self.assertEqual(c['mean_vec_cache']['type'],
                          dme_key)
         # Check using string encodings of set bytes (JSON compliant).
@@ -171,34 +168,34 @@ class TestItqFunctor (unittest.TestCase):
         itq.mean_vec_cache_elem = DataMemoryElement(readonly=True)
         itq.rotation_cache_elem = DataMemoryElement(readonly=False)
         itq.save_model()
-        self.assertEqual(itq.mean_vec_cache_elem.get_bytes(), six.b(''))
-        self.assertEqual(itq.rotation_cache_elem.get_bytes(), six.b(''))
+        self.assertEqual(itq.mean_vec_cache_elem.get_bytes(), b'')
+        self.assertEqual(itq.rotation_cache_elem.get_bytes(), b'')
 
         # read-only rotation cache
         itq.mean_vec_cache_elem = DataMemoryElement(readonly=False)
         itq.rotation_cache_elem = DataMemoryElement(readonly=True)
         itq.save_model()
-        self.assertEqual(itq.mean_vec_cache_elem.get_bytes(), six.b(''))
-        self.assertEqual(itq.rotation_cache_elem.get_bytes(), six.b(''))
+        self.assertEqual(itq.mean_vec_cache_elem.get_bytes(), b'')
+        self.assertEqual(itq.rotation_cache_elem.get_bytes(), b'')
 
         # Both read-only
         itq.mean_vec_cache_elem = DataMemoryElement(readonly=True)
         itq.rotation_cache_elem = DataMemoryElement(readonly=True)
         itq.save_model()
-        self.assertEqual(itq.mean_vec_cache_elem.get_bytes(), six.b(''))
-        self.assertEqual(itq.rotation_cache_elem.get_bytes(), six.b(''))
+        self.assertEqual(itq.mean_vec_cache_elem.get_bytes(), b'')
+        self.assertEqual(itq.rotation_cache_elem.get_bytes(), b'')
 
     def test_save_model_with_writable_caches(self):
         # If one or both cache elements are read-only, no saving.
         expected_mean_vec = numpy.array([1, 2, 3])
         expected_rotation = numpy.eye(3)
 
-        expected_mean_vec_bytes = six.BytesIO()
+        expected_mean_vec_bytes = BytesIO()
         # noinspection PyTypeChecker
         numpy.save(expected_mean_vec_bytes, expected_mean_vec)
         expected_mean_vec_bytes = expected_mean_vec_bytes.getvalue()
 
-        expected_rotation_bytes = six.BytesIO()
+        expected_rotation_bytes = BytesIO()
         # noinspection PyTypeChecker
         numpy.save(expected_rotation_bytes, expected_rotation)
         expected_rotation_bytes = expected_rotation_bytes.getvalue()
@@ -233,7 +230,7 @@ class TestItqFunctor (unittest.TestCase):
         # used).
         fit_descriptors = []
         for i in range(3):
-            d = DescriptorMemoryElement(six.b('test'), i)
+            d = DescriptorMemoryElement(b'test', i)
             d.set_vector([-1+i, -1+i])
             fit_descriptors.append(d)
 
@@ -258,7 +255,7 @@ class TestItqFunctor (unittest.TestCase):
     def test_fit(self):
         fit_descriptors = []
         for i in range(5):
-            d = DescriptorMemoryElement(six.b('test'), i)
+            d = DescriptorMemoryElement(b'test', i)
             d.set_vector([-2. + i, -2. + i])
             fit_descriptors.append(d)
 
@@ -275,7 +272,7 @@ class TestItqFunctor (unittest.TestCase):
     def test_fit_with_cache(self):
         fit_descriptors = []
         for i in range(5):
-            d = DescriptorMemoryElement(six.b('test'), i)
+            d = DescriptorMemoryElement(b'test', i)
             d.set_vector([-2. + i, -2. + i])
             fit_descriptors.append(d)
 
@@ -289,13 +286,13 @@ class TestItqFunctor (unittest.TestCase):
                                                                [1 / sqrt(2)]])
         self.assertIsNotNone(itq.mean_vec_cache_elem)
         numpy.testing.assert_array_almost_equal(
-            numpy.load(six.BytesIO(itq.mean_vec_cache_elem.get_bytes())),
+            numpy.load(BytesIO(itq.mean_vec_cache_elem.get_bytes())),
             [0, 0]
         )
 
         self.assertIsNotNone(itq.rotation_cache_elem)
         numpy.testing.assert_array_almost_equal(
-            numpy.load(six.BytesIO(itq.rotation_cache_elem.get_bytes())),
+            numpy.load(BytesIO(itq.rotation_cache_elem.get_bytes())),
             [[1 / sqrt(2)],
              [1 / sqrt(2)]]
         )
@@ -303,7 +300,7 @@ class TestItqFunctor (unittest.TestCase):
     def test_get_hash(self):
         fit_descriptors = []
         for i in range(5):
-            d = DescriptorMemoryElement(six.b('test'), i)
+            d = DescriptorMemoryElement(b'test', i)
             d.set_vector([-2. + i, -2. + i])
             fit_descriptors.append(d)
 

@@ -1,13 +1,11 @@
-from __future__ import division, print_function
 import unittest
-
 import unittest.mock as mock
+
 import numpy
 
-from smqtk.representation.descriptor_element.local_elements import \
-    DescriptorMemoryElement
-from smqtk.algorithms.nn_index import NearestNeighborsIndex
-from smqtk.utils.iter_validation import check_empty_iterable
+from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryElement
+from smqtk_indexing.interfaces.nearest_neighbor_index import NearestNeighborsIndex
+from smqtk_indexing.utils.iter_validation import check_empty_iterable
 
 
 class DummySI (NearestNeighborsIndex):

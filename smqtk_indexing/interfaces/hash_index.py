@@ -1,10 +1,10 @@
 import abc
 
-from smqtk.algorithms import SmqtkAlgorithm
-from smqtk.utils import check_empty_iterable
+from smqtk_core import Configurable, Pluggable
+from smqtk_indexing.utils.iter_validation import check_empty_iterable
 
 
-class HashIndex (SmqtkAlgorithm):
+class HashIndex (Configurable, Pluggable):
     """
     Specialized ``NearestNeighborsIndex`` for indexing unique hash codes
     bit-vectors) in memory (numpy arrays) using the hamming distance metric.

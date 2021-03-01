@@ -1,16 +1,14 @@
-from __future__ import division, print_function
-import unittest.mock as mock
 import random
+import unittest.mock as mock
 import unittest
 
 import numpy
 import pytest
 
-from smqtk.algorithms import NearestNeighborsIndex
-from smqtk.algorithms.nn_index.flann import FlannNearestNeighborsIndex
-from smqtk.representation.descriptor_element.local_elements import \
-    DescriptorMemoryElement
-from smqtk.utils.configuration import configuration_test_helper
+from smqtk_core.configuration import configuration_test_helper
+from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryElement
+from smqtk_indexing import NearestNeighborsIndex
+from smqtk_indexing.impls.nn_index.flann import FlannNearestNeighborsIndex
 
 
 # Don't bother running tests of the class is not usable

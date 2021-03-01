@@ -1,28 +1,26 @@
-from __future__ import division, print_function
-
 import collections
 import json
-import unittest.mock as mock
 import random
 import types
+import unittest.mock as mock
 import unittest
 
 import numpy as np
+import pytest
 
-from smqtk.algorithms.nn_index import NearestNeighborsIndex
-from smqtk.algorithms.nn_index.lsh import LSHNearestNeighborIndex
-from smqtk.algorithms.nn_index.lsh.functors import LshFunctor
-from smqtk.algorithms.nn_index.lsh.functors.itq import ItqFunctor
-from smqtk.algorithms.nn_index.hash_index import HashIndex
-from smqtk.algorithms.nn_index.hash_index.linear import LinearHashIndex
-from smqtk.algorithms.nn_index.hash_index.sklearn_balltree import \
-    SkLearnBallTreeHashIndex
-from smqtk.exceptions import ReadOnlyError
-from smqtk.representation.descriptor_element.local_elements import \
-    DescriptorMemoryElement
-from smqtk.representation.descriptor_set.memory import MemoryDescriptorSet
-from smqtk.representation.key_value.memory import MemoryKeyValueStore
-from smqtk.utils.configuration import configuration_test_helper
+from smqtk_core.configuration import configuration_test_helper
+
+from smqtk_dataprovider.exceptions import ReadOnlyError
+from smqtk_dataprovider.impls.key_value_store.memory import MemoryKeyValueStore
+
+from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryElement
+from smqtk_descriptors.impls.descriptor_set.memory import MemoryDescriptorSet
+
+from smqtk_indexing import HashIndex, LshFunctor, NearestNeighborsIndex
+from smqtk_indexing.impls.hash_index.linear import LinearHashIndex
+from smqtk_indexing.impls.hash_index.sklearn_balltree import SkLearnBallTreeHashIndex
+from smqtk_indexing.impls.lsh_functor.itq import ItqFunctor
+from smqtk_indexing.impls.nn_index.lsh import LSHNearestNeighborIndex
 
 
 class DummyHashFunctor (LshFunctor):
@@ -82,9 +80,9 @@ class TestLshIndex (unittest.TestCase):
         self.assertEqual(json.loads(json.dumps(c)), c)
 
         # Make a simple configuration
-        c['lsh_functor']['type'] = 'smqtk.algorithms.nn_index.lsh.functors.itq.ItqFunctor'
-        c['descriptor_set']['type'] = 'smqtk.representation.descriptor_set.memory.MemoryDescriptorSet'
-        c['hash2uuids_kvstore']['type'] = 'smqtk.representation.key_value.memory.MemoryKeyValueStore'
+        c['lsh_functor']['type'] = 'smqtk_indexing.impls.lsh_functor.itq.ItqFunctor'
+        c['descriptor_set']['type'] = 'smqtk_descriptors.impls.descriptor_set.memory.MemoryDescriptorSet'
+        c['hash2uuids_kvstore']['type'] = 'smqtk_dataprovider.impls.key_value_store.memory.MemoryKeyValueStore'
         c['hash_index']['type'] = None
         index = LSHNearestNeighborIndex.from_config(c)
 
@@ -809,6 +807,10 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         hi = self._make_hi_linear()
         self._random_euclidean(ftor, hi, fit)
 
+    @pytest.mark.skipif(
+        not SkLearnBallTreeHashIndex.is_usable(),
+        reason="SkLearnBallTreeHashIndex is not usable in the current environment."
+    )
     def test_random_euclidean__itq__balltree(self):
         ftor, fit = self._make_ftor_itq()
         hi = self._make_hi_balltree()
@@ -878,11 +880,19 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         hi = self._make_hi_linear()
         self._known_unit(ftor, hi, 'hik', fit)
 
+    @pytest.mark.skipif(
+        not SkLearnBallTreeHashIndex.is_usable(),
+        reason="SkLearnBallTreeHashIndex is not usable in the current environment."
+    )
     def test_known_unit__euclidean__itq__balltree(self):
         ftor, fit = self._make_ftor_itq(5)
         hi = self._make_hi_balltree()
         self._known_unit(ftor, hi, 'euclidean', fit)
 
+    @pytest.mark.skipif(
+        not SkLearnBallTreeHashIndex.is_usable(),
+        reason="SkLearnBallTreeHashIndex is not usable in the current environment."
+    )
     def test_known_unit__hik__itq__balltree(self):
         ftor, fit = self._make_ftor_itq(5)
         hi = self._make_hi_balltree()
@@ -936,6 +946,10 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         hi = self._make_hi_linear()
         self._known_ordered_euclidean(ftor, hi, fit)
 
+    @pytest.mark.skipif(
+        not SkLearnBallTreeHashIndex.is_usable(),
+        reason="SkLearnBallTreeHashIndex is not usable in the current environment."
+    )
     def test_known_ordered_euclidean__itq__balltree(self):
         ftor, fit = self._make_ftor_itq(1)
         hi = self._make_hi_balltree()

@@ -2,23 +2,26 @@ import itertools
 import logging
 import multiprocessing
 import os
+import pickle
 import tempfile
 from typing import List
-
-from six.moves import cPickle
+import warnings
 
 import numpy
 
-from smqtk.algorithms.nn_index import NearestNeighborsIndex
-from smqtk.representation import DescriptorElement
-from smqtk.representation.data_element import from_uri
-from smqtk.representation.descriptor_element import elements_to_matrix
+from smqtk_dataprovider import from_uri
+from smqtk_descriptors import DescriptorElement
+from smqtk_descriptors.utils import parallel_map
+from smqtk_indexing import NearestNeighborsIndex
 
 # Requires FLANN bindings
 try:
     import pyflann  # type: ignore
 except ImportError:
     pyflann = None
+
+
+LOG = logging.getLogger(__name__)
 
 
 class FlannNearestNeighborsIndex (NearestNeighborsIndex):
@@ -112,6 +115,13 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
         :type random_seed: int
 
         """
+        warnings.warn(
+            "This FLANN implementation is deprecated. Please utilize a more "
+            "recent and supported plugin NearestNeighborsIndex, like the "
+            "FaissNearestNeighborsIndex plugin.",
+            category=DeprecationWarning
+        )
+
         super(FlannNearestNeighborsIndex, self).__init__()
 
         self._index_uri = index_uri
@@ -162,7 +172,7 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
 
         # Load the index/parameters if one exists
         if self._has_model_data():
-            self._log.info("Found existing model data. Loading.")
+            LOG.info("Found existing model data. Loading.")
             self._load_flann_model()
 
     def get_config(self):
@@ -195,14 +205,14 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
         if can_load_descr_cache:
             # Load descriptor cache
             # - is copied on fork, so only need to load here.
-            self._log.debug("Loading cached descriptors")
-            self._descr_cache = cPickle.loads(
+            LOG.debug("Loading cached descriptors")
+            self._descr_cache = pickle.loads(
                 self._descr_cache_elem.get_bytes()
             )
 
         # Params pickle include the build params + our local state params
         if self._index_param_elem and not self._index_param_elem.is_empty():
-            state = cPickle.loads(self._index_param_elem.get_bytes())
+            state = pickle.loads(self._index_param_elem.get_bytes())
             self._build_autotune = state['b_autotune']
             self._build_target_precision = state['b_target_precision']
             self._build_sample_frac = state['b_sample_frac']
@@ -277,23 +287,22 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
         with self._model_lock:
             # Not caring about restoring the index because we're just making a
             # new one.
-            self._log.info("Building new FLANN index")
+            LOG.info("Building new FLANN index")
 
-            self._log.debug("Caching descriptor elements")
+            LOG.debug("Caching descriptor elements")
             self._descr_cache = list(descriptors)
             # Cache descriptors if we have an element
             if self._descr_cache_elem and self._descr_cache_elem.writable():
-                self._log.debug("Caching descriptors: %s",
-                                self._descr_cache_elem)
+                LOG.debug(f"Caching descriptors: {self._descr_cache_elem}")
                 self._descr_cache_elem.set_bytes(
-                    cPickle.dumps(self._descr_cache, -1)
+                    pickle.dumps(self._descr_cache, -1)
                 )
 
             params = {
                 "target_precision": self._build_target_precision,
                 "sample_fraction": self._build_sample_frac,
                 "log_level": ("info"
-                              if self._log.getEffectiveLevel() <= logging.DEBUG
+                              if LOG.getEffectiveLevel() <= logging.DEBUG
                               else "warning")
             }
             if self._build_autotune:
@@ -302,19 +311,19 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
                 params['random_seed'] = self._rand_seed
             pyflann.set_distance_type(self._distance_method)
 
-            self._log.debug("Accumulating descriptor vectors into matrix for "
-                            "FLANN")
-            pts_array = elements_to_matrix(self._descr_cache,
-                                           report_interval=1.0)
+            LOG.debug("Accumulating descriptor vectors into matrix for FLANN")
+            pts_array = numpy.asarray(list(
+                parallel_map(lambda d_: d_.vector(), self._descr_cache)
+            ))
 
-            self._log.debug('Building FLANN index')
+            LOG.debug('Building FLANN index')
             self._flann = pyflann.FLANN()
             self._flann_build_params = self._flann.build_index(pts_array,
                                                                **params)
             del pts_array
 
             if self._index_elem and self._index_elem.writable():
-                self._log.debug("Caching index: %s", self._index_elem)
+                LOG.debug("Caching index: %s", self._index_elem)
                 # FLANN wants to write to a file, so make a temp file, then
                 # read it in, putting bytes into element.
                 fd, fp = tempfile.mkstemp()
@@ -330,8 +339,7 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
                 finally:
                     os.remove(fp)
             if self._index_param_elem and self._index_param_elem.writable():
-                self._log.debug("Caching index params: %s",
-                                self._index_param_elem)
+                LOG.debug(f"Caching index params: {self._index_param_elem}")
                 state = {
                     'b_autotune': self._build_autotune,
                     'b_target_precision': self._build_target_precision,
@@ -339,7 +347,7 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
                     'distance_method': self._distance_method,
                     'flann_build_params': self._flann_build_params,
                 }
-                self._index_param_elem.set_bytes(cPickle.dumps(state, -1))
+                self._index_param_elem.set_bytes(pickle.dumps(state, -1))
 
             self._pid = multiprocessing.current_process().pid
 
@@ -368,8 +376,7 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
             self._restore_index()
             # Build a new index that contains the union of the current
             # descriptors and the new provided descriptors.
-            self._log.info("Rebuilding FLANN index to include new "
-                           "descriptors.")
+            LOG.info("Rebuilding FLANN index to include new descriptors.")
             self.build_index(itertools.chain(self._descr_cache, descriptors))
 
     def _remove_from_index(self, uids):
