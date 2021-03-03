@@ -21,7 +21,7 @@ from smqtk_core.dict import merge_dict
 from smqtk_dataprovider import DataElement
 from smqtk_descriptors.utils import parallel_map
 from smqtk_indexing import LshFunctor
-from smqtk_indexing.utils.cli import ProgressReporter
+from smqtk_indexing.utils.progress_reporter import ProgressReporter
 
 
 LOG = logging.getLogger(__name__)
