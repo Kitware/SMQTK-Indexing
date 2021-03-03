@@ -4,8 +4,7 @@ import unittest
 
 import numpy as np
 
-from six.moves import range
-from smqtk.utils import metrics as df
+from smqtk_indexing.utils import metrics
 
 
 def gen(n):
@@ -23,8 +22,8 @@ class TestHistogramIntersectionDistance (unittest.TestCase):
     m2 = np.array([v2, v4])
 
     hi_methods = [
-        df.histogram_intersection_distance_fast,
-        df.histogram_intersection_distance,
+        metrics.histogram_intersection_distance_fast,
+        metrics.histogram_intersection_distance,
     ]
 
     def test_hi_result_zerovector(self):
@@ -61,32 +60,32 @@ class TestHistogramIntersectionDistance (unittest.TestCase):
         # vectors and matrices, following documented rules.
 
         self.assertEqual(
-            df.histogram_intersection_distance(self.v4, self.v3),
+            metrics.histogram_intersection_distance(self.v4, self.v3),
             0.5
         )
 
         np.testing.assert_array_equal(
-            df.histogram_intersection_distance(self.v2, self.m1),
+            metrics.histogram_intersection_distance(self.v2, self.m1),
             [0., 1., 0.5]
         )
         np.testing.assert_array_equal(
-            df.histogram_intersection_distance(self.m1, self.v2),
+            metrics.histogram_intersection_distance(self.m1, self.v2),
             [0., 1., 0.5]
         )
 
         np.testing.assert_array_equal(
-            df.histogram_intersection_distance(self.m1, self.m1),
+            metrics.histogram_intersection_distance(self.m1, self.m1),
             [0, 0, 0]
         )
 
-        self.assertRaises(ValueError, df.histogram_intersection_distance,
+        self.assertRaises(ValueError, metrics.histogram_intersection_distance,
                           self.m1, self.m2)
 
 
 class TestHammingDistance (unittest.TestCase):
 
     def test_hd_0(self):
-        self.assertEqual(df.hamming_distance(0, 0), 0)
+        self.assertEqual(metrics.hamming_distance(0, 0), 0)
 
     def test_rand(self):
         n = 64
@@ -94,7 +93,7 @@ class TestHammingDistance (unittest.TestCase):
             a = gen(n)
             b = gen(n)
             actual = bin(a ^ b).count('1')
-            self.assertEqual(df.hamming_distance(a, b), actual)
+            self.assertEqual(metrics.hamming_distance(a, b), actual)
 
     def test_rand_large(self):
         n = 1024
@@ -102,4 +101,4 @@ class TestHammingDistance (unittest.TestCase):
             a = gen(n)
             b = gen(n)
             actual = bin(a ^ b).count('1')
-            self.assertEqual(df.hamming_distance(a, b), actual)
+            self.assertEqual(metrics.hamming_distance(a, b), actual)
