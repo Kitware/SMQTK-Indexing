@@ -12,15 +12,15 @@ from smqtk_indexing.impls.lsh_functor.itq import ItqFunctor
 
 class TestItqFunctor (unittest.TestCase):
 
-    def test_is_usable(self):
+    def test_is_usable(self) -> None:
         # Should always be usable due to no non-standard dependencies.
         self.assertTrue(ItqFunctor.is_usable())
 
-    def test_default_configuration(self):
+    def test_default_configuration(self) -> None:
         c = ItqFunctor.get_default_config()
         self.assertEqual(ItqFunctor.from_config(c).get_config(), c)
 
-    def test_configuration_with_caches(self):
+    def test_configuration_with_caches(self) -> None:
         # This should run without error in both python
         # 2 and 3, as str/unicode are JSON compliant in both.
         expected_mean_vec = numpy.array([1, 2, 3])
@@ -71,7 +71,7 @@ class TestItqFunctor (unittest.TestCase):
         self.assertEqual(itq.normalize, 2)
         self.assertEqual(itq.random_seed, 58)
 
-    def test_norm_vector_no_normalization(self):
+    def test_norm_vector_no_normalization(self) -> None:
         itq = ItqFunctor(normalize=None)
 
         v = numpy.array([0, 1])
@@ -83,7 +83,7 @@ class TestItqFunctor (unittest.TestCase):
         v = numpy.array([0]*128)
         numpy.testing.assert_array_equal(itq._norm_vector(v), v)
 
-    def test_norm_vector_n2(self):
+    def test_norm_vector_n2(self) -> None:
         itq = ItqFunctor(normalize=2)
 
         v = numpy.array([1, 0])
@@ -96,7 +96,7 @@ class TestItqFunctor (unittest.TestCase):
             itq._norm_vector(v), [1./sqrt(2), 1./sqrt(2)]
         )
 
-    def test_get_config_no_cache(self):
+    def test_get_config_no_cache(self) -> None:
         itq = ItqFunctor(bit_length=1, itq_iterations=2, normalize=3,
                          random_seed=4)
         c = itq.get_config()
@@ -107,7 +107,7 @@ class TestItqFunctor (unittest.TestCase):
         self.assertIsNone(c['mean_vec_cache']['type'])
         self.assertIsNone(c['rotation_cache']['type'])
 
-    def test_get_config_with_cache_elements(self):
+    def test_get_config_with_cache_elements(self) -> None:
         itq = ItqFunctor(bit_length=5, itq_iterations=6, normalize=7,
                          random_seed=8)
         itq.mean_vec_cache_elem = DataMemoryElement(b'cached vec bytes')
@@ -127,7 +127,7 @@ class TestItqFunctor (unittest.TestCase):
         self.assertEqual(c['rotation_cache'][dme_key]['bytes'],
                          'cached rot bytes')
 
-    def test_has_model(self):
+    def test_has_model(self) -> None:
         itq = ItqFunctor()
         # with no vector/rotation set, should return false.
         self.assertFalse(itq.has_model())
@@ -143,7 +143,7 @@ class TestItqFunctor (unittest.TestCase):
         itq.rotation = 'rotation'
         self.assertTrue(itq.has_model())
 
-    def test_save_model_no_caches(self):
+    def test_save_model_no_caches(self) -> None:
         expected_mean_vec = numpy.array([1, 2, 3])
         expected_rotation = numpy.eye(3)
 
@@ -155,7 +155,7 @@ class TestItqFunctor (unittest.TestCase):
         self.assertIsNone(itq.mean_vec_cache_elem)
         self.assertIsNone(itq.mean_vec_cache_elem)
 
-    def test_save_model_with_read_only_cache(self):
+    def test_save_model_with_read_only_cache(self) -> None:
         # If one or both cache elements are read-only, no saving.
         expected_mean_vec = numpy.array([1, 2, 3])
         expected_rotation = numpy.eye(3)
@@ -185,20 +185,20 @@ class TestItqFunctor (unittest.TestCase):
         self.assertEqual(itq.mean_vec_cache_elem.get_bytes(), b'')
         self.assertEqual(itq.rotation_cache_elem.get_bytes(), b'')
 
-    def test_save_model_with_writable_caches(self):
+    def test_save_model_with_writable_caches(self) -> None:
         # If one or both cache elements are read-only, no saving.
         expected_mean_vec = numpy.array([1, 2, 3])
         expected_rotation = numpy.eye(3)
 
-        expected_mean_vec_bytes = BytesIO()
+        expected_mean_vec_bio = BytesIO()
         # noinspection PyTypeChecker
-        numpy.save(expected_mean_vec_bytes, expected_mean_vec)
-        expected_mean_vec_bytes = expected_mean_vec_bytes.getvalue()
+        numpy.save(expected_mean_vec_bio, expected_mean_vec)
+        expected_mean_vec_bytes = expected_mean_vec_bio.getvalue()
 
-        expected_rotation_bytes = BytesIO()
+        expected_rotation_bio = BytesIO()
         # noinspection PyTypeChecker
-        numpy.save(expected_rotation_bytes, expected_rotation)
-        expected_rotation_bytes = expected_rotation_bytes.getvalue()
+        numpy.save(expected_rotation_bio, expected_rotation)
+        expected_rotation_bytes = expected_rotation_bio.getvalue()
 
         itq = ItqFunctor()
         itq.mean_vec = expected_mean_vec
@@ -212,7 +212,7 @@ class TestItqFunctor (unittest.TestCase):
         self.assertEqual(itq.rotation_cache_elem.get_bytes(),
                          expected_rotation_bytes)
 
-    def test_fit_has_model(self):
+    def test_fit_has_model(self) -> None:
         # When trying to run fit where there is already a mean vector and
         # rotation set.
         itq = ItqFunctor()
@@ -224,13 +224,13 @@ class TestItqFunctor (unittest.TestCase):
             itq.fit, []
         )
 
-    def test_fit_short_descriptors_for_bit_length(self):
+    def test_fit_short_descriptors_for_bit_length(self) -> None:
         # Should error when input descriptors have fewer dimensions than set bit
         # length for output hash codes (limitation of PCA method currently
         # used).
         fit_descriptors = []
         for i in range(3):
-            d = DescriptorMemoryElement(b'test', i)
+            d = DescriptorMemoryElement('test', i)
             d.set_vector([-1+i, -1+i])
             fit_descriptors.append(d)
 
@@ -252,10 +252,10 @@ class TestItqFunctor (unittest.TestCase):
         self.assertIsNone(itq.mean_vec)
         self.assertIsNone(itq.rotation)
 
-    def test_fit(self):
+    def test_fit(self) -> None:
         fit_descriptors = []
         for i in range(5):
-            d = DescriptorMemoryElement(b'test', i)
+            d = DescriptorMemoryElement('test', i)
             d.set_vector([-2. + i, -2. + i])
             fit_descriptors.append(d)
 
@@ -269,15 +269,17 @@ class TestItqFunctor (unittest.TestCase):
         self.assertIsNone(itq.mean_vec_cache_elem)
         self.assertIsNone(itq.rotation_cache_elem)
 
-    def test_fit_with_cache(self):
+    def test_fit_with_cache(self) -> None:
         fit_descriptors = []
         for i in range(5):
-            d = DescriptorMemoryElement(b'test', i)
+            d = DescriptorMemoryElement('test', i)
             d.set_vector([-2. + i, -2. + i])
             fit_descriptors.append(d)
 
         itq = ItqFunctor(DataMemoryElement(), DataMemoryElement(),
                          bit_length=1, random_seed=0)
+        assert itq.mean_vec_cache_elem is not None
+        assert itq.rotation_cache_elem is not None
         itq.fit(fit_descriptors)
 
         # TODO: Explanation as to why this is the expected result.
@@ -285,22 +287,24 @@ class TestItqFunctor (unittest.TestCase):
         numpy.testing.assert_array_almost_equal(itq.rotation, [[1 / sqrt(2)],
                                                                [1 / sqrt(2)]])
         self.assertIsNotNone(itq.mean_vec_cache_elem)
+        # noinspection PyTypeChecker
         numpy.testing.assert_array_almost_equal(
             numpy.load(BytesIO(itq.mean_vec_cache_elem.get_bytes())),
             [0, 0]
         )
 
         self.assertIsNotNone(itq.rotation_cache_elem)
+        # noinspection PyTypeChecker
         numpy.testing.assert_array_almost_equal(
             numpy.load(BytesIO(itq.rotation_cache_elem.get_bytes())),
             [[1 / sqrt(2)],
              [1 / sqrt(2)]]
         )
 
-    def test_get_hash(self):
+    def test_get_hash(self) -> None:
         fit_descriptors = []
         for i in range(5):
-            d = DescriptorMemoryElement(b'test', i)
+            d = DescriptorMemoryElement('test', i)
             d.set_vector([-2. + i, -2. + i])
             fit_descriptors.append(d)
 

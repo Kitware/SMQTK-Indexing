@@ -1,5 +1,6 @@
 import random
 import os.path as osp
+from typing import Any
 import unittest
 
 import numpy as np
@@ -19,7 +20,7 @@ class TestMRPTIndex (unittest.TestCase):
 
     RAND_SEED = 42
 
-    def _make_inst(self, **kwargs):
+    def _make_inst(self, **kwargs: Any) -> MRPTNearestNeighborsIndex:
         """
         Make an instance of MRPTNearestNeighborsIndex
         """
@@ -28,11 +29,11 @@ class TestMRPTIndex (unittest.TestCase):
         return MRPTNearestNeighborsIndex(
             MemoryDescriptorSet(), **kwargs)
 
-    def test_impl_findable(self):
+    def test_impl_findable(self) -> None:
         self.assertIn(MRPTNearestNeighborsIndex,
                       NearestNeighborsIndex.get_impls())
 
-    def test_configuration(self):
+    def test_configuration(self) -> None:
         index_filepath = osp.abspath(osp.expanduser('index_filepath'))
         para_filepath = osp.abspath(osp.expanduser('param_fp'))
 
@@ -53,7 +54,7 @@ class TestMRPTIndex (unittest.TestCase):
             assert inst._pickle_protocol == 0
             assert inst._use_multiprocessing is True
 
-    def test_read_only(self):
+    def test_read_only(self) -> None:
         v = np.zeros(5, float)
         v[0] = 1.
         d = DescriptorMemoryElement('unit', 0)
@@ -66,14 +67,14 @@ class TestMRPTIndex (unittest.TestCase):
             index.build_index, test_descriptors
         )
 
-    def test_update_index_no_input(self):
+    def test_update_index_no_input(self) -> None:
         index = self._make_inst()
         self.assertRaises(
             ValueError,
             index.update_index, []
         )
 
-    def test_update_index_new_index(self):
+    def test_update_index_new_index(self) -> None:
         n = 100
         dim = 8
         d_set = [DescriptorMemoryElement('test', i) for i in range(n)]
@@ -95,7 +96,7 @@ class TestMRPTIndex (unittest.TestCase):
             n_elems, n_dists = index.nn(q)
             self.assertEqual(n_elems[0], q)
 
-    def test_update_index_additive(self):
+    def test_update_index_additive(self) -> None:
         n1 = 100
         n2 = 10
         dim = 8
@@ -124,7 +125,7 @@ class TestMRPTIndex (unittest.TestCase):
             n_elems, n_dists = index.nn(q)
             self.assertEqual(n_elems[0], q)
 
-    def test_remove_from_index_readonly(self):
+    def test_remove_from_index_readonly(self) -> None:
         """
         Test that remove causes an error in a readonly instance.
         """
@@ -134,7 +135,7 @@ class TestMRPTIndex (unittest.TestCase):
             index.remove_from_index, [0]
         )
 
-    def test_remove_from_index_invalid_uid(self):
+    def test_remove_from_index_invalid_uid(self) -> None:
         """
         Test that error occurs when attempting to remove descriptor UID that
         isn't indexed.
@@ -145,7 +146,7 @@ class TestMRPTIndex (unittest.TestCase):
             index.remove_from_index, [0]
         )
 
-    def test_remove_from_index(self):
+    def test_remove_from_index(self) -> None:
         """
         Test expected removal from the index.
         """
@@ -180,7 +181,7 @@ class TestMRPTIndex (unittest.TestCase):
         self.assertNotIn(dset[82].uuid(),
                          set(d.uuid() for d in index.nn(dset[10], n)[0]))
 
-    def test_nn_many_descriptors(self):
+    def test_nn_many_descriptors(self) -> None:
         np.random.seed(0)
 
         n = 10 ** 4
@@ -202,7 +203,7 @@ class TestMRPTIndex (unittest.TestCase):
         self.assertEqual(len(nbrs), len(dists))
         self.assertEqual(len(nbrs), 10)
 
-    def test_nn_small_leaves(self):
+    def test_nn_small_leaves(self) -> None:
         np.random.seed(0)
 
         n = 10 ** 4
@@ -227,7 +228,7 @@ class TestMRPTIndex (unittest.TestCase):
         self.assertEqual(len(nbrs), len(dists))
         self.assertEqual(len(nbrs), k)
 
-    def test_nn_pathological_example(self):
+    def test_nn_pathological_example(self) -> None:
         n = 10 ** 4
         dim = 256
         depth = 10
@@ -256,7 +257,7 @@ class TestMRPTIndex (unittest.TestCase):
         # 200
         self.assertLess(len(nbrs), 20)
 
-    def test_nn_known_descriptors_euclidean_unit(self):
+    def test_nn_known_descriptors_euclidean_unit(self) -> None:
         dim = 5
 
         ###
@@ -267,9 +268,9 @@ class TestMRPTIndex (unittest.TestCase):
         for i in range(dim):
             v = np.zeros(dim, float)
             v[i] = 1.
-            d = DescriptorMemoryElement('unit', i)
-            d.set_vector(v)
-            test_descriptors.append(d)
+            test_descriptors.append(
+                DescriptorMemoryElement('unit', i).set_vector(v)
+            )
         index.build_index(test_descriptors)
         # query descriptor -- zero vector
         # -> all modeled descriptors should be equally distant (unit
@@ -282,7 +283,7 @@ class TestMRPTIndex (unittest.TestCase):
         for d in dists:
             self.assertEqual(d, 1.)
 
-    def test_nn_known_descriptors_nearest(self):
+    def test_nn_known_descriptors_nearest(self) -> None:
         dim = 5
 
         ###
@@ -306,16 +307,15 @@ class TestMRPTIndex (unittest.TestCase):
             self.assertEqual(dists[0], 0.)
             np.testing.assert_allclose(r[0].vector(), vectors[i])
 
-    def test_nn_known_descriptors_euclidean_ordered(self):
+    def test_nn_known_descriptors_euclidean_ordered(self) -> None:
         index = self._make_inst()
 
         # make vectors to return in a known euclidean distance order
         i = 100
-        test_descriptors = []
-        for j in range(i):
-            d = DescriptorMemoryElement('ordered', j)
-            d.set_vector(np.array([j, j*2], float))
-            test_descriptors.append(d)
+        test_descriptors = [
+            DescriptorMemoryElement('ordered', j).set_vector(np.array([j, j*2], float))
+            for j in range(i)
+        ]
         random.shuffle(test_descriptors)
         index.build_index(test_descriptors)
 

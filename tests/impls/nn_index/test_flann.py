@@ -19,20 +19,20 @@ class TestFlannIndex (unittest.TestCase):
 
     RAND_SEED = 42
 
-    def _make_inst(self, dist_method):
+    def _make_inst(self, dist_method: str) -> FlannNearestNeighborsIndex:
         """
         Make an instance of FlannNearestNeighborsIndex
         """
         return FlannNearestNeighborsIndex(distance_method=dist_method,
                                           random_seed=self.RAND_SEED)
 
-    def test_impl_findable(self):
+    def test_impl_findable(self) -> None:
         # Already here because the implementation is reporting itself as
         # usable.
         self.assertIn(FlannNearestNeighborsIndex,
                       NearestNeighborsIndex.get_impls())
 
-    def test_configuration(self):
+    def test_configuration(self) -> None:
         index_filepath = '/index_filepath'
         para_filepath = '/param_fp'
         descr_cache_fp = '/descrcachefp'
@@ -50,15 +50,15 @@ class TestFlannIndex (unittest.TestCase):
             assert inst._distance_method == 'hik'
             assert inst._rand_seed == 42
 
-    def test_has_model_data_no_uris(self):
+    def test_has_model_data_no_uris(self) -> None:
         f = FlannNearestNeighborsIndex()
         self.assertFalse(f._has_model_data())
 
-    def test_has_model_data_empty_elements(self):
+    def test_has_model_data_empty_elements(self) -> None:
         f = FlannNearestNeighborsIndex('', '', '')
         self.assertFalse(f._has_model_data())
 
-    def test_load_flann_model_empty_data_elements(self):
+    def test_load_flann_model_empty_data_elements(self) -> None:
         # Construct index with valid, but empty, data URIs instances
         empty_data = 'base64://'
         f = FlannNearestNeighborsIndex(empty_data, empty_data, empty_data)
@@ -70,9 +70,9 @@ class TestFlannIndex (unittest.TestCase):
         self.assertIsNone(f._flann_build_params)
         self.assertIsNotNone(f._pid)
 
-    @mock.patch("smqtk.algorithms.nn_index.flann"
+    @mock.patch("smqtk_indexing.impls.nn_index.flann"
                 ".FlannNearestNeighborsIndex._load_flann_model")
-    def test_has_model_data_valid_uris(self, _m_flann_lfm):
+    def test_has_model_data_valid_uris(self, _m_flann_lfm: mock.MagicMock) -> None:
         # Mocking flann data loading that occurs in constructor when given
         # non-empty URI targets
         f = FlannNearestNeighborsIndex(
@@ -82,7 +82,7 @@ class TestFlannIndex (unittest.TestCase):
         )
         self.assertTrue(f._has_model_data())
 
-    def test_build_index_one(self):
+    def test_build_index_one(self) -> None:
         d = DescriptorMemoryElement('test', 0)
         d.set_vector(numpy.zeros(8, float))
         index = self._make_inst('euclidean')
@@ -94,11 +94,14 @@ class TestFlannIndex (unittest.TestCase):
         self.assertIsNotNone(index._flann)
         self.assertIsInstance(index._flann_build_params, dict)
 
-    def test_build_index_with_cache(self):
+    def test_build_index_with_cache(self) -> None:
         # Empty memory data elements for storage
         empty_data = 'base64://'
         f = FlannNearestNeighborsIndex(empty_data, empty_data, empty_data)
         # Internal elements should initialize have zero-length byte values
+        assert f._index_elem is not None
+        assert f._index_param_elem is not None
+        assert f._descr_cache_elem is not None
         self.assertEqual(len(f._index_elem.get_bytes()), 0)
         self.assertEqual(len(f._index_param_elem.get_bytes()), 0)
         self.assertEqual(len(f._descr_cache_elem.get_bytes()), 0)
@@ -120,7 +123,7 @@ class TestFlannIndex (unittest.TestCase):
         self.assertGreater(len(f._index_param_elem.get_bytes()), 0)
         self.assertGreater(len(f._descr_cache_elem.get_bytes()), 0)
 
-    def test_update_index(self):
+    def test_update_index(self) -> None:
         # Build index with one descriptor, then "update" with a second
         # different descriptor checking that the new cache contains both.
         d1 = DescriptorMemoryElement('test', 0)
@@ -137,7 +140,7 @@ class TestFlannIndex (unittest.TestCase):
         self.assertEqual(index.count(), 2)
         self.assertSetEqual(set(index._descr_cache), {d1, d2})
 
-    def test_nn_known_descriptors_euclidean_unit(self):
+    def test_nn_known_descriptors_euclidean_unit(self) -> None:
         dim = 5
 
         ###
@@ -148,9 +151,9 @@ class TestFlannIndex (unittest.TestCase):
         for i in range(dim):
             v = numpy.zeros(dim, float)
             v[i] = 1.
-            d = DescriptorMemoryElement('unit', i)
-            d.set_vector(v)
-            test_descriptors.append(d)
+            test_descriptors.append(
+                DescriptorMemoryElement('unit', i).set_vector([v])
+            )
         index.build_index(test_descriptors)
         # query descriptor -- zero vector
         # -> all modeled descriptors should be equally distance (unit
@@ -162,16 +165,15 @@ class TestFlannIndex (unittest.TestCase):
         for d in dists:
             self.assertEqual(d, 1.)
 
-    def test_nn_known_descriptors_euclidean_ordered(self):
+    def test_nn_known_descriptors_euclidean_ordered(self) -> None:
         index = self._make_inst('euclidean')
 
         # make vectors to return in a known euclidean distance order
         i = 10
-        test_descriptors = []
-        for j in range(i):
-            d = DescriptorMemoryElement('ordered', j)
-            d.set_vector(numpy.array([j, j*2], float))
-            test_descriptors.append(d)
+        test_descriptors = [
+            DescriptorMemoryElement('ordered', j).set_vector(numpy.array([j, j*2], float))
+            for j in range(i)
+        ]
         random.shuffle(test_descriptors)
         index.build_index(test_descriptors)
 
@@ -185,7 +187,7 @@ class TestFlannIndex (unittest.TestCase):
             self.assertEqual(d.uuid(), j)
             numpy.testing.assert_equal(d.vector(), [j, j*2])
 
-    def test_nn_known_descriptors_hik_unit(self):
+    def test_nn_known_descriptors_hik_unit(self) -> None:
         dim = 5
 
         ###
@@ -196,9 +198,9 @@ class TestFlannIndex (unittest.TestCase):
         for i in range(dim):
             v = numpy.zeros(dim, float)
             v[i] = 1.
-            d = DescriptorMemoryElement('unit', i)
-            d.set_vector(v)
-            test_descriptors.append(d)
+            test_descriptors.append(
+                DescriptorMemoryElement('unit', i).set_vector(v)
+            )
         index.build_index(test_descriptors)
         # query with zero vector
         # -> all modeled descriptors have no intersection, dists should be
@@ -220,18 +222,21 @@ class TestFlannIndex (unittest.TestCase):
         self.assertEqual(r[0], q)
         self.assertEqual(dists[0], 0.)
 
-    def test_build_index_no_descriptors(self):
+    def test_build_index_no_descriptors(self) -> None:
         f = FlannNearestNeighborsIndex()
         self.assertRaises(
             ValueError,
             f.build_index, []
         )
 
-    def test_build_index(self):
+    def test_build_index(self) -> None:
         # Empty memory data elements for storage
         empty_data = 'base64://'
         f = FlannNearestNeighborsIndex(empty_data, empty_data, empty_data)
         # Internal elements should initialize have zero-length byte values
+        assert f._index_elem is not None
+        assert f._index_param_elem is not None
+        assert f._descr_cache_elem is not None
         self.assertEqual(len(f._index_elem.get_bytes()), 0)
         self.assertEqual(len(f._index_param_elem.get_bytes()), 0)
         self.assertEqual(len(f._descr_cache_elem.get_bytes()), 0)

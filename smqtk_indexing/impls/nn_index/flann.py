@@ -4,12 +4,12 @@ import multiprocessing
 import os
 import pickle
 import tempfile
-from typing import List
+from typing import cast, Any, Dict, Hashable, Iterable, List, Optional, Tuple
 import warnings
 
 import numpy
 
-from smqtk_dataprovider import from_uri
+from smqtk_dataprovider import from_uri, DataElement
 from smqtk_descriptors import DescriptorElement
 from smqtk_descriptors.utils import parallel_map
 from smqtk_indexing import NearestNeighborsIndex
@@ -41,15 +41,22 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
     """
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         # if underlying library is not found, the import above will error
         return pyflann is not None
 
-    def __init__(self, index_uri=None, parameters_uri=None,
-                 descriptor_cache_uri=None,
-                 # Parameters for building an index
-                 autotune=False, target_precision=0.95, sample_fraction=0.1,
-                 distance_method='hik', random_seed=None):
+    def __init__(
+        self,
+        index_uri: Optional[str] = None,
+        parameters_uri: Optional[str] = None,
+        descriptor_cache_uri: Optional[str] = None,
+        # Parameters for building an index
+        autotune: bool = False,
+        target_precision: float = 0.95,
+        sample_fraction: float = 0.1,
+        distance_method: str = 'hik',
+        random_seed: Optional[int] = None
+    ):
         """
         Initialize FLANN index properties. Does not contain a query-able index
         until one is built via the ``build_index`` method, or loaded from
@@ -69,50 +76,29 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
         just point you to the MATLAB section).
 
         :param index_uri: Optional URI to where to load/store FLANN index
-            when initialized and/or built.
-
-            If not configured, no model files are written to or loaded from
-            disk.
-        :type index_uri: None | str
-
+            when initialized and/or built. If not configured, no model files
+            are written to or loaded from disk.
         :param parameters_uri: Optional file location to load/save FLANN
-            index parameters determined at build time.
-
-            If not configured, no model files are written to or loaded from
-            disk.
-        :type parameters_uri: None | str
-
+            index parameters determined at build time. If not configured, no
+            model files are written to or loaded from disk.
         :param descriptor_cache_uri: Optional file location to load/store
-            DescriptorElements in this index.
-
-            If not configured, no model files are written to or loaded from
-            disk.
-        :type descriptor_cache_uri: None | str
-
+            DescriptorElements in this index. If not configured, no model files
+            are written to or loaded from disk.
         :param autotune: Whether or not to perform parameter auto-tuning when
             building the index. If this is False, then the `target_precision`
             and `sample_fraction` parameters are not used.
-        :type autotune: bool
-
         :param target_precision: Target estimation accuracy when determining
             nearest neighbor when tuning parameters. This should be between
             [0,1] and represents percentage accuracy.
-        :type target_precision: float
-
         :param sample_fraction: Sub-sample percentage of the total index to use
             when performing auto-tuning. Value should be in the range of [0,1]
             and represents percentage.
-        :type sample_fraction: float
-
         :param distance_method: Method label of the distance function to use.
             See FLANN documentation manual for available methods. Common
             methods include "hik", "chi_square" (default), and "euclidean".
             When loading and existing index, this value is ignored in
             preference for the distance method used to build the loaded index.
-        :type distance_method: str
-
         :param random_seed: Integer to use as the random number generator seed.
-        :type random_seed: int
 
         """
         warnings.warn(
@@ -129,12 +115,18 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
         self._descr_cache_uri = descriptor_cache_uri
 
         # Elements will be None if input URI is None
-        self._index_elem = \
+        self._index_elem = cast(
+            Optional[DataElement],
             self._index_uri and from_uri(self._index_uri)
-        self._index_param_elem = \
+        )
+        self._index_param_elem = cast(
+            Optional[DataElement],
             self._index_param_uri and from_uri(self._index_param_uri)
-        self._descr_cache_elem = \
+        )
+        self._descr_cache_elem = cast(
+            Optional[DataElement],
             self._descr_cache_uri and from_uri(self._descr_cache_uri)
+        )
 
         # parameters for building an index
         self._build_autotune = autotune
@@ -153,11 +145,9 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
         self._descr_cache: List[DescriptorElement] = []
 
         # The flann instance with a built index. None before index load/build.
-        #: :type: pyflann.index.FLANN or None
-        self._flann = None
+        self._flann: pyflann.index.FLANN = None
         # Flann index parameters determined during building. None before index
         # load/build.
-        #: :type: dict
         self._flann_build_params = None
 
         #: :type: None | int
@@ -168,14 +158,14 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
         # The process ID that the currently set FLANN instance was built/loaded
         # on. If this differs from the current process ID, the index should be
         # reloaded from cache.
-        self._pid = None
+        self._pid: Optional[int] = None
 
         # Load the index/parameters if one exists
         if self._has_model_data():
             LOG.info("Found existing model data. Loading.")
             self._load_flann_model()
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         return {
             "index_uri": self._index_uri,
             "parameters_uri": self._index_param_uri,
@@ -187,22 +177,22 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
             "random_seed": self._rand_seed,
         }
 
-    def _has_model_data(self):
+    def _has_model_data(self) -> bool:
         """
         check if configured model files are configured and not empty
         """
-        return (self._index_elem and not self._index_elem.is_empty() and
-                self._index_param_elem and
-                not self._index_param_elem.is_empty() and
-                self._descr_cache_elem and
-                not self._descr_cache_elem.is_empty())
+        return bool(self._index_elem and not self._index_elem.is_empty() and
+                    self._index_param_elem and
+                    not self._index_param_elem.is_empty() and
+                    self._descr_cache_elem and
+                    not self._descr_cache_elem.is_empty())
 
-    def _load_flann_model(self):
-        can_load_descr_cache = (
-            bool(self._descr_cache)
-            and not self._descr_cache_elem.is_empty()
-        )
-        if can_load_descr_cache:
+    def _load_flann_model(self) -> None:
+        if (
+            bool(self._descr_cache) and
+            self._descr_cache_elem is not None and
+            not self._descr_cache_elem.is_empty()
+        ):
             # Load descriptor cache
             # - is copied on fork, so only need to load here.
             LOG.debug("Loading cached descriptors")
@@ -220,11 +210,10 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
             self._flann_build_params = state['flann_build_params']
 
         # Load the binary index
-        can_restore_index = (
+        if (
             self._index_elem
             and not self._index_elem.is_empty()
-        )
-        if can_restore_index:
+        ):
             # make numpy matrix of descriptor vectors for FLANN
             pts_array = [d.vector() for d in self._descr_cache]
             pts_array = numpy.array(pts_array, dtype=pts_array[0].dtype)
@@ -238,7 +227,7 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
         # Set current PID to the current
         self._pid = multiprocessing.current_process().pid
 
-    def _restore_index(self):
+    def _restore_index(self) -> None:
         """
         If we think we're suppose to have an index, check the recorded PID with
         the current PID, reloading the index from cache if they differ.
@@ -251,7 +240,7 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
                 and self._pid != multiprocessing.current_process().pid:
             self._load_flann_model()
 
-    def count(self):
+    def count(self) -> int:
         """
         :return: Number of elements in this index.
         :rtype: int
@@ -262,7 +251,7 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
             else:
                 return 0
 
-    def _build_index(self, descriptors):
+    def _build_index(self, descriptors: Iterable[DescriptorElement]) -> None:
         """
         Internal method to be implemented by sub-classes to build the index
         with the given descriptor data elements.
@@ -351,7 +340,7 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
 
             self._pid = multiprocessing.current_process().pid
 
-    def _update_index(self, descriptors):
+    def _update_index(self, descriptors: Iterable[DescriptorElement]) -> None:
         """
         Internal method to be implemented by sub-classes to additively update
         the current index with the one or more descriptor elements given.
@@ -368,8 +357,6 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
 
         :param descriptors: Iterable of descriptor elements to add to this
             index.
-        :type descriptors: collections.abc.Iterable[smqtk.representation
-                                                     .DescriptorElement]
 
         """
         with self._model_lock:
@@ -379,7 +366,7 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
             LOG.info("Rebuilding FLANN index to include new descriptors.")
             self.build_index(itertools.chain(self._descr_cache, descriptors))
 
-    def _remove_from_index(self, uids):
+    def _remove_from_index(self, uids: Iterable[Hashable]) -> None:
         """
         Internal method to be implemented by sub-classes to partially remove
         descriptors from this index associated with the given UIDs.
@@ -407,7 +394,10 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
                 [descr for descr in self._descr_cache if descr.uuid() in uidset]
             self.build_index(self._descr_cache)
 
-    def _nn(self, d, n=1):
+    def _nn(
+        self, d: DescriptorElement,
+        n: int = 1
+    ) -> Tuple[Tuple[DescriptorElement, ...], Tuple[float, ...]]:
         """
         Internal method to be implemented by sub-classes to return the nearest
         `N` neighbors to the given descriptor element.
@@ -416,14 +406,10 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
         is a vector in ``d`` and our index is not empty.
 
         :param d: Descriptor element to compute the neighbors of.
-        :type d: smqtk.representation.DescriptorElement
-
         :param n: Number of nearest neighbors to find.
-        :type n: int
 
         :return: Tuple of nearest N DescriptorElement instances, and a tuple of
             the distance values to those neighbors.
-        :rtype: (tuple[smqtk.representation.DescriptorElement], tuple[float])
 
         """
         with self._model_lock:
@@ -439,17 +425,17 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
             #
             # FLANN asserts that we query for <= index size, thus the use of
             # min().
+            idxs: numpy.ndarray
+            dists: numpy.ndarray
             if self._distance_method == 'hik':
                 # This call is different than the else version in that k is the
                 # size of the full data set, so that we can reverse the
                 # distances.
-                #: :type: numpy.ndarray, numpy.ndarray
                 idxs, dists = self._flann.nn_index(
                     vec, len(self._descr_cache),
                     **self._flann_build_params
                 )
             else:
-                #: :type: numpy.ndarray, numpy.ndarray
                 idxs, dists = self._flann.nn_index(
                     vec, min(n, len(self._descr_cache)),
                     **self._flann_build_params
@@ -463,14 +449,14 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
 
             if self._distance_method == 'hik':
                 # Invert values to stay consistent with other distance value
-                # norms.
-                dists = [1.0 - d for d in dists]
-                idxs = tuple(reversed(idxs))[:n]
-                dists = tuple(reversed(dists))[:n]
-            else:
-                dists = tuple(dists)
+                # norms. This also means that we reverse the "nearest" order
+                # and reintroduce `n` size limit.
+                # - This is intentionally happening *after* the "squeeze" op
+                #   above.
+                dists = (1.0 - dists)[::-1][:n]
+                idxs = idxs[::-1][:n]
 
-            return [self._descr_cache[i] for i in idxs], dists
+            return tuple(self._descr_cache[i] for i in idxs), tuple(dists)
 
 
 NN_INDEX_CLASS = FlannNearestNeighborsIndex

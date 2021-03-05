@@ -7,7 +7,7 @@ import numpy as np
 from smqtk_indexing.utils import metrics
 
 
-def gen(n):
+def gen(n: int) -> int:
     return random.randint(0, 2**n-1)
 
 
@@ -26,7 +26,7 @@ class TestHistogramIntersectionDistance (unittest.TestCase):
         metrics.histogram_intersection_distance,
     ]
 
-    def test_hi_result_zerovector(self):
+    def test_hi_result_zerovector(self) -> None:
         # HI distance of anything with the zero vector is 1.0 since a valid
         # histogram does not intersect with nothing.
         # REMEMBER we're talking about distance here, not similarity
@@ -40,7 +40,7 @@ class TestHistogramIntersectionDistance (unittest.TestCase):
             self.assertEqual(m(self.v1, self.v4), 1.)
             self.assertEqual(m(self.v4, self.v1), 1.)
 
-    def test_hi_result_normal(self):
+    def test_hi_result_normal(self) -> None:
         for m in self.hi_methods:
             print("Tests for method: %s" % m)
 
@@ -55,7 +55,7 @@ class TestHistogramIntersectionDistance (unittest.TestCase):
 
             self.assertEqual(m(self.v4, self.v4), 0.0)
 
-    def test_hi_input_format(self):
+    def test_hi_input_format(self) -> None:
         # the general form method should be able to take any combination of
         # vectors and matrices, following documented rules.
 
@@ -84,10 +84,10 @@ class TestHistogramIntersectionDistance (unittest.TestCase):
 
 class TestHammingDistance (unittest.TestCase):
 
-    def test_hd_0(self):
+    def test_hd_0(self) -> None:
         self.assertEqual(metrics.hamming_distance(0, 0), 0)
 
-    def test_rand(self):
+    def test_rand(self) -> None:
         n = 64
         for i in range(1000):
             a = gen(n)
@@ -95,7 +95,7 @@ class TestHammingDistance (unittest.TestCase):
             actual = bin(a ^ b).count('1')
             self.assertEqual(metrics.hamming_distance(a, b), actual)
 
-    def test_rand_large(self):
+    def test_rand_large(self) -> None:
         n = 1024
         for i in range(1000):
             a = gen(n)

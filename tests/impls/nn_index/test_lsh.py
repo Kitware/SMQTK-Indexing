@@ -2,6 +2,7 @@ import collections
 import json
 import random
 import types
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 import unittest.mock as mock
 import unittest
 
@@ -13,6 +14,7 @@ from smqtk_core.configuration import configuration_test_helper
 from smqtk_dataprovider.exceptions import ReadOnlyError
 from smqtk_dataprovider.impls.key_value_store.memory import MemoryKeyValueStore
 
+from smqtk_descriptors import DescriptorElement
 from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryElement
 from smqtk_descriptors.impls.descriptor_set.memory import MemoryDescriptorSet
 
@@ -26,22 +28,22 @@ from smqtk_indexing.impls.nn_index.lsh import LSHNearestNeighborIndex
 class DummyHashFunctor (LshFunctor):
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         return True
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         """ stub """
 
-    def get_hash(self, descriptor):
+    def get_hash(self, descriptor: np.ndarray) -> np.ndarray:
         """
         Dummy function that returns the bits of the integer sum of descriptor
         vector.
 
-        :param descriptor: Descriptor vector we should generate the hash of.
-        :type descriptor: np.ndarray[float]
+        :param descriptor: Descriptor vector (float-typed) we should generate
+            the hash of.
 
-        :return: Generated bit-vector as a numpy array of booleans.
-        :rtype: np.ndarray[bool]
+        :return: Generated bit-vector (boolean-typed) as a numpy array of
+            booleans.
 
         """
         return np.asarray([int(c) for c in bin(int(descriptor.sum()))[2:]],
@@ -50,14 +52,14 @@ class DummyHashFunctor (LshFunctor):
 
 class TestLshIndex (unittest.TestCase):
 
-    def test_is_usable(self):
+    def test_is_usable(self) -> None:
         # Should always be usable since this is a shell class.
         self.assertTrue(LSHNearestNeighborIndex.is_usable())
 
-    def test_findable(self):
+    def test_findable(self) -> None:
         assert LSHNearestNeighborIndex in NearestNeighborsIndex.get_impls()
 
-    def test_configuration(self):
+    def test_configuration(self) -> None:
         i = LSHNearestNeighborIndex(
             lsh_functor=ItqFunctor(), descriptor_set=MemoryDescriptorSet(),
             hash2uuids_kvstore=MemoryKeyValueStore(),
@@ -72,7 +74,7 @@ class TestLshIndex (unittest.TestCase):
             assert inst.distance_method == 'euclidean'
             assert inst.read_only is True
 
-    def test_configuration_none_HI(self):
+    def test_configuration_none_HI(self) -> None:
         c = LSHNearestNeighborIndex.get_default_config()
 
         # Check that default is in JSON format and is decoded to the same
@@ -97,7 +99,7 @@ class TestLshIndex (unittest.TestCase):
             index.get_config()
         )
 
-    def test_get_dist_func_euclidean(self):
+    def test_get_dist_func_euclidean(self) -> None:
         f = LSHNearestNeighborIndex._get_dist_func('euclidean')
         self.assertIsInstance(f, types.FunctionType)
         self.assertAlmostEqual(
@@ -105,7 +107,7 @@ class TestLshIndex (unittest.TestCase):
             1.0
         )
 
-    def test_get_dist_func_cosine(self):
+    def test_get_dist_func_cosine(self) -> None:
         f = LSHNearestNeighborIndex._get_dist_func('cosine')
         self.assertIsInstance(f, types.FunctionType)
         self.assertAlmostEqual(
@@ -117,7 +119,7 @@ class TestLshIndex (unittest.TestCase):
             0.5
         )
 
-    def test_get_dist_func_hik(self):
+    def test_get_dist_func_hik(self) -> None:
         f = LSHNearestNeighborIndex._get_dist_func('hik')
         self.assertIsInstance(f, types.FunctionType)
         self.assertAlmostEqual(
@@ -133,14 +135,14 @@ class TestLshIndex (unittest.TestCase):
             0.0
         )
 
-    def test_get_dist_func_invalid_string(self):
+    def test_get_dist_func_invalid_string(self) -> None:
         self.assertRaises(
             ValueError,
             LSHNearestNeighborIndex._get_dist_func,
             'not-valid-string'
         )
 
-    def test_count_empty_hash2uid(self):
+    def test_count_empty_hash2uid(self) -> None:
         """
         Test that an empty hash-to-uid mapping results in a 0 return regardless
         of descriptor-set state.
@@ -176,7 +178,7 @@ class TestLshIndex (unittest.TestCase):
         self.assertEqual(lsh.descriptor_set.count(), 2)
         self.assertEqual(lsh.count(), 3)
 
-    def test_build_index_read_only(self):
+    def test_build_index_read_only(self) -> None:
         index = LSHNearestNeighborIndex(DummyHashFunctor(),
                                         MemoryDescriptorSet(),
                                         MemoryKeyValueStore(), read_only=True)
@@ -185,7 +187,7 @@ class TestLshIndex (unittest.TestCase):
             index._build_index, []
         )
 
-    def test_build_index_fresh_build(self):
+    def test_build_index_fresh_build(self) -> None:
         descr_set = MemoryDescriptorSet()
         hash_kvs = MemoryKeyValueStore()
         index = LSHNearestNeighborIndex(DummyHashFunctor(),
@@ -213,7 +215,7 @@ class TestLshIndex (unittest.TestCase):
         for i in range(5):
             self.assertSetEqual(hash_kvs.get(i), {i})
 
-    def test_build_index_fresh_build_with_hash_index(self):
+    def test_build_index_fresh_build_with_hash_index(self) -> None:
         descr_set = MemoryDescriptorSet()
         hash_kvs = MemoryKeyValueStore()
         linear_hi = LinearHashIndex()  # simplest hash index, heap-sorts.
@@ -235,7 +237,7 @@ class TestLshIndex (unittest.TestCase):
         # converts those to integers for storage.
         self.assertEqual(linear_hi.index, {0, 1, 2, 3, 4})
 
-    def test_update_index_read_only(self):
+    def test_update_index_read_only(self) -> None:
         index = LSHNearestNeighborIndex(DummyHashFunctor(),
                                         MemoryDescriptorSet(),
                                         MemoryKeyValueStore(), read_only=True)
@@ -244,7 +246,7 @@ class TestLshIndex (unittest.TestCase):
             index._update_index, []
         )
 
-    def test_update_index_no_existing_index(self):
+    def test_update_index_no_existing_index(self) -> None:
         # Test that calling update_index with no existing index acts like
         # building the index fresh.  This test is basically the same as
         # test_build_index_fresh_build but using update_index instead.
@@ -274,7 +276,7 @@ class TestLshIndex (unittest.TestCase):
         for i in range(5):
             self.assertSetEqual(hash_kvs.get(i), {i})
 
-    def test_update_index_add_new_descriptors(self):
+    def test_update_index_add_new_descriptors(self) -> None:
         # Test that calling update index after a build index causes index
         # components to be properly updated.
         descr_set = MemoryDescriptorSet()
@@ -318,7 +320,7 @@ class TestLshIndex (unittest.TestCase):
         for i in range(7):
             self.assertSetEqual(hash_kvs.get(i), {i})
 
-    def test_update_index_duplicate_descriptors(self):
+    def test_update_index_duplicate_descriptors(self) -> None:
         """
         Test that updating a built index with the same descriptors results in
         idempotent behavior.
@@ -361,7 +363,7 @@ class TestLshIndex (unittest.TestCase):
         assert hash_kvs.get(3) == {3}
         assert hash_kvs.get(4) == {4}
 
-    def test_update_index_similar_descriptors(self):
+    def test_update_index_similar_descriptors(self) -> None:
         """
         Test that updating a built index with similar descriptors (same
         vectors, different UUIDs) results in contained structures having an
@@ -405,7 +407,7 @@ class TestLshIndex (unittest.TestCase):
         assert hash_kvs.get(3) == {3, 8}
         assert hash_kvs.get(4) == {4, 9}
 
-    def test_update_index_existing_descriptors_frozenset(self):
+    def test_update_index_existing_descriptors_frozenset(self) -> None:
         """
         Same as ``test_update_index_similar_descriptors`` but testing that
         we can update the index when seeded with structures with existing
@@ -455,7 +457,7 @@ class TestLshIndex (unittest.TestCase):
         assert hash_kvs.get(3) == {3, 8}
         assert hash_kvs.get(4) == {4, 9}
 
-    def test_update_index_with_hash_index(self):
+    def test_update_index_with_hash_index(self) -> None:
         # Similar test to `test_update_index_add_new_descriptors` but with a
         # linear hash index.
         descr_set = MemoryDescriptorSet()
@@ -490,7 +492,7 @@ class TestLshIndex (unittest.TestCase):
         # Now the hash index should include all descriptor hashes.
         self.assertSetEqual(linear_hi.index, {0, 1, 2, 3, 4, 5, 6})
 
-    def test_remove_from_index_read_only(self):
+    def test_remove_from_index_read_only(self) -> None:
         d_set = MemoryDescriptorSet()
         hash_kvs = MemoryKeyValueStore()
         idx = LSHNearestNeighborIndex(DummyHashFunctor(), d_set, hash_kvs,
@@ -501,7 +503,7 @@ class TestLshIndex (unittest.TestCase):
             ['uid1', 'uid2']
         )
 
-    def test_remove_from_index_no_existing_index(self):
+    def test_remove_from_index_no_existing_index(self) -> None:
         # Test that attempting to remove from an instance with no existing
         # index (meaning empty descriptor-set and key-value-store) results in
         # a key error.
@@ -515,7 +517,7 @@ class TestLshIndex (unittest.TestCase):
             ['uid1']
         )
 
-    def test_remove_from_index_invalid_uid(self):
+    def test_remove_from_index_invalid_uid(self) -> None:
         # Test that attempting to remove a single invalid UID causes a key
         # error and does not affect index.
 
@@ -552,7 +554,9 @@ class TestLshIndex (unittest.TestCase):
         idx = LSHNearestNeighborIndex(DummyHashFunctor(), d_set, hash_kvs)
         idx.build_index(descriptors)
         # Assert we have the correct expected values
+        assert isinstance(idx.descriptor_set, MemoryDescriptorSet)
         self.assertEqual(idx.descriptor_set._table, expected_dset_table)
+        assert isinstance(idx.hash2uuids_kvstore, MemoryKeyValueStore)
         self.assertEqual(idx.hash2uuids_kvstore._table, expected_kvs_table)
 
         # Attempt to remove descriptor with a UID we did not build with.
@@ -573,7 +577,7 @@ class TestLshIndex (unittest.TestCase):
         self.assertEqual(idx.descriptor_set._table, expected_dset_table)
         self.assertEqual(idx.hash2uuids_kvstore._table, expected_kvs_table)
 
-    def test_remove_from_index(self):
+    def test_remove_from_index(self) -> None:
         # Test that removing by UIDs does the correct thing.
 
         # Descriptors are 1 dim, value == index.
@@ -594,12 +598,14 @@ class TestLshIndex (unittest.TestCase):
 
         # Attempt removing 1 uid.
         idx.remove_from_index([3])
+        assert isinstance(idx.descriptor_set, MemoryDescriptorSet)
         self.assertEqual(idx.descriptor_set._table, {
             0: descriptors[0],
             1: descriptors[1],
             2: descriptors[2],
             4: descriptors[4],
         })
+        assert isinstance(idx.hash2uuids_kvstore, MemoryKeyValueStore)
         self.assertEqual(idx.hash2uuids_kvstore._table, {
             0: {0},
             1: {1},
@@ -607,14 +613,14 @@ class TestLshIndex (unittest.TestCase):
             4: {4},
         })
 
-    def test_remove_from_index_shared_hashes(self):
+    def test_remove_from_index_shared_hashes(self) -> None:
         """
         Test that removing a descriptor (by UID) that shares a hash with other
         descriptors does not trigger removal of its hash.
         """
         # Simulate descriptors all hashing to the same hash value: 0
         hash_func = DummyHashFunctor()
-        hash_func.get_hash = mock.Mock(return_value=np.asarray([0], bool))
+        hash_func.get_hash = mock.Mock(return_value=np.asarray([0], bool))  # type: ignore
 
         d_set = MemoryDescriptorSet()
         hash2uids_kvs = MemoryKeyValueStore()
@@ -660,7 +666,7 @@ class TestLshIndex (unittest.TestCase):
         self.assertDictEqual(hash2uids_kvs._table, {0: {0, 1, 3}})
         idx.hash_index.remove_from_index.assert_not_called()
 
-    def test_remove_from_index_shared_hashes_partial(self):
+    def test_remove_from_index_shared_hashes_partial(self) -> None:
         """
         Test that only some hashes are removed from the hash index, but not
         others when those hashes still refer to other descriptors.
@@ -679,7 +685,7 @@ class TestLshIndex (unittest.TestCase):
 
         # Dummy hash function to do the simulated thing
         hash_func = DummyHashFunctor()
-        hash_func.get_hash = mock.Mock(
+        hash_func.get_hash = mock.Mock(  # type: ignore
             # Vectors of even sum hash to 0, odd to 1.
             side_effect=lambda vec: [vec.sum() % 2]
         )
@@ -722,28 +728,35 @@ class TestLshIndexAlgorithms (unittest.TestCase):
     Various tests on the ``nn`` method for different inputs and parameters.
     """
 
-    RANDOM_SEED = 0
+    RANDOM_SEED: int = 0
 
-    def _make_ftor_itq(self, bits=32):
+    def _make_ftor_itq(
+        self,
+        bits: int = 32
+    ) -> Tuple[ItqFunctor, Callable[[Iterable[DescriptorElement]], None]]:
         itq_ftor = ItqFunctor(bit_length=bits, random_seed=self.RANDOM_SEED)
 
-        def itq_fit(D):
-            itq_ftor.fit(D)
+        def itq_fit(d_iter: Iterable[DescriptorElement]) -> None:
+            itq_ftor.fit(d_iter)
 
         return itq_ftor, itq_fit
 
     # noinspection PyMethodMayBeStatic
-    def _make_hi_linear(self):
+    def _make_hi_linear(self) -> LinearHashIndex:
         return LinearHashIndex()
 
-    def _make_hi_balltree(self):
+    def _make_hi_balltree(self) -> SkLearnBallTreeHashIndex:
         return SkLearnBallTreeHashIndex(random_seed=self.RANDOM_SEED)
 
     #
     # Test LSH with random vectors
     #
-    def _random_euclidean(self, hash_ftor, hash_idx,
-                          ftor_train_hook=lambda d: None):
+    def _random_euclidean(
+        self,
+        hash_ftor: LshFunctor,
+        hash_idx: Optional[HashIndex],
+        ftor_train_hook: Callable[[Iterable[DescriptorElement]], None] = lambda d: None
+    ) -> None:
         # :param hash_ftor: Hash function class for generating hash codes for
         #   descriptors.
         # :param hash_idx: Hash index instance to use in local LSH algo
@@ -798,11 +811,11 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         for j in range(1, len(dists)):
             self.assertGreater(dists[j], dists[j-1])
 
-    def test_random_euclidean__itq__None(self):
+    def test_random_euclidean__itq__None(self) -> None:
         ftor, fit = self._make_ftor_itq()
         self._random_euclidean(ftor, None, fit)
 
-    def test_random_euclidean__itq__linear(self):
+    def test_random_euclidean__itq__linear(self) -> None:
         ftor, fit = self._make_ftor_itq()
         hi = self._make_hi_linear()
         self._random_euclidean(ftor, hi, fit)
@@ -811,7 +824,7 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         not SkLearnBallTreeHashIndex.is_usable(),
         reason="SkLearnBallTreeHashIndex is not usable in the current environment."
     )
-    def test_random_euclidean__itq__balltree(self):
+    def test_random_euclidean__itq__balltree(self) -> None:
         ftor, fit = self._make_ftor_itq()
         hi = self._make_hi_balltree()
         self._random_euclidean(ftor, hi, fit)
@@ -819,8 +832,13 @@ class TestLshIndexAlgorithms (unittest.TestCase):
     #
     # Test unit vectors
     #
-    def _known_unit(self, hash_ftor, hash_idx, dist_method,
-                    ftor_train_hook=lambda d: None):
+    def _known_unit(
+        self,
+        hash_ftor: LshFunctor,
+        hash_idx: Optional[HashIndex],
+        dist_method: str,
+        ftor_train_hook: Callable[[Iterable[DescriptorElement]], None] = lambda d: None
+    ) -> None:
         ###
         # Unit vectors - Equal distance
         #
@@ -829,9 +847,9 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         for i in range(dim):
             v = np.zeros(dim, float)
             v[i] = 1.
-            d = DescriptorMemoryElement('unit', i)
-            d.set_vector(v)
-            test_descriptors.append(d)
+            test_descriptors.append(
+                DescriptorMemoryElement('unit', i).set_vector(v)
+            )
 
         ftor_train_hook(test_descriptors)
 
@@ -862,20 +880,20 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         self.assertEqual(r[0], q)
         self.assertEqual(dists[0], 0.)
 
-    def test_known_unit__euclidean__itq__None(self):
+    def test_known_unit__euclidean__itq__None(self) -> None:
         ftor, fit = self._make_ftor_itq(5)
         self._known_unit(ftor, None, 'euclidean', fit)
 
-    def test_known_unit__hik__itq__None(self):
+    def test_known_unit__hik__itq__None(self) -> None:
         ftor, fit = self._make_ftor_itq(5)
         self._known_unit(ftor, None, 'hik', fit)
 
-    def test_known_unit__euclidean__itq__linear(self):
+    def test_known_unit__euclidean__itq__linear(self) -> None:
         ftor, fit = self._make_ftor_itq(5)
         hi = self._make_hi_linear()
         self._known_unit(ftor, hi, 'euclidean', fit)
 
-    def test_known_unit__hik__itq__linear(self):
+    def test_known_unit__hik__itq__linear(self) -> None:
         ftor, fit = self._make_ftor_itq(5)
         hi = self._make_hi_linear()
         self._known_unit(ftor, hi, 'hik', fit)
@@ -884,7 +902,7 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         not SkLearnBallTreeHashIndex.is_usable(),
         reason="SkLearnBallTreeHashIndex is not usable in the current environment."
     )
-    def test_known_unit__euclidean__itq__balltree(self):
+    def test_known_unit__euclidean__itq__balltree(self) -> None:
         ftor, fit = self._make_ftor_itq(5)
         hi = self._make_hi_balltree()
         self._known_unit(ftor, hi, 'euclidean', fit)
@@ -893,7 +911,7 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         not SkLearnBallTreeHashIndex.is_usable(),
         reason="SkLearnBallTreeHashIndex is not usable in the current environment."
     )
-    def test_known_unit__hik__itq__balltree(self):
+    def test_known_unit__hik__itq__balltree(self) -> None:
         ftor, fit = self._make_ftor_itq(5)
         hi = self._make_hi_balltree()
         self._known_unit(ftor, hi, 'hik', fit)
@@ -901,15 +919,18 @@ class TestLshIndexAlgorithms (unittest.TestCase):
     #
     # Test with known vectors and euclidean dist
     #
-    def _known_ordered_euclidean(self, hash_ftor, hash_idx,
-                                 ftor_train_hook=lambda d: None):
+    def _known_ordered_euclidean(
+        self,
+        hash_ftor: LshFunctor,
+        hash_idx: Optional[HashIndex],
+        ftor_train_hook: Callable[[Iterable[DescriptorElement]], None] = lambda d: None
+    ) -> None:
         # make vectors to return in a known euclidean distance order
         i = 1000
-        test_descriptors = []
-        for j in range(i):
-            d = DescriptorMemoryElement('ordered', j)
-            d.set_vector(np.array([j, j*2], float))
-            test_descriptors.append(d)
+        test_descriptors = [
+            DescriptorMemoryElement('ordered', j).set_vector(np.array([j, j*2], float))
+            for j in range(i)
+        ]
         random.shuffle(test_descriptors)
 
         ftor_train_hook(test_descriptors)
@@ -937,11 +958,11 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         for j, d, dist in zip(range(i), r, dists):
             self.assertEqual(d.uuid(), j)
 
-    def test_known_ordered_euclidean__itq__None(self):
+    def test_known_ordered_euclidean__itq__None(self) -> None:
         ftor, fit = self._make_ftor_itq(1)
         self._known_ordered_euclidean(ftor, None, fit)
 
-    def test_known_ordered_euclidean__itq__linear(self):
+    def test_known_ordered_euclidean__itq__linear(self) -> None:
         ftor, fit = self._make_ftor_itq(1)
         hi = self._make_hi_linear()
         self._known_ordered_euclidean(ftor, hi, fit)
@@ -950,7 +971,7 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         not SkLearnBallTreeHashIndex.is_usable(),
         reason="SkLearnBallTreeHashIndex is not usable in the current environment."
     )
-    def test_known_ordered_euclidean__itq__balltree(self):
+    def test_known_ordered_euclidean__itq__balltree(self) -> None:
         ftor, fit = self._make_ftor_itq(1)
         hi = self._make_hi_balltree()
         self._known_ordered_euclidean(ftor, hi, fit)

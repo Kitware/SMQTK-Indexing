@@ -9,8 +9,9 @@ from collections.abc import Sequence
 from copy import deepcopy
 from io import BytesIO
 import logging
+from typing import Any, Dict, Iterable, Optional, Tuple, Type, TypeVar, Union
 
-import numpy
+import numpy as np
 
 from smqtk_core.configuration import (
     from_config_dict,
@@ -19,12 +20,13 @@ from smqtk_core.configuration import (
 )
 from smqtk_core.dict import merge_dict
 from smqtk_dataprovider import DataElement
+from smqtk_descriptors import DescriptorElement
 from smqtk_descriptors.utils import parallel_map
 from smqtk_indexing import LshFunctor
 from smqtk_indexing.utils.progress_reporter import ProgressReporter
 
-
 LOG = logging.getLogger(__name__)
+T_IF = TypeVar("T_IF", bound="ItqFunctor")
 
 
 class ItqFunctor (LshFunctor):
@@ -48,11 +50,11 @@ class ItqFunctor (LshFunctor):
     """
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         return True
 
     @classmethod
-    def get_default_config(cls):
+    def get_default_config(cls) -> Dict[str, Any]:
         default = super(ItqFunctor, cls).get_default_config()
 
         # Cache element parameters need to be split out into sub-configurations
@@ -66,21 +68,21 @@ class ItqFunctor (LshFunctor):
         return default
 
     @classmethod
-    def from_config(cls, config_dict, merge_default=True):
+    def from_config(
+        cls: Type[T_IF],
+        config_dict: Dict,
+        merge_default: bool = True
+    ) -> T_IF:
         """
         Instantiate a new instance of this class given the JSON-compliant
         configuration dictionary encapsulating initialization arguments.
 
         :param config_dict: JSON compliant dictionary encapsulating
             a configuration.
-        :type config_dict: dict
-
         :param merge_default: Merge the given configuration on top of the
             default provided by ``get_default_config``.
-        :type merge_default: bool
 
         :return: Constructed instance from the provided config.
-        :rtype: ItqFunctor
 
         """
         if merge_default:
@@ -104,9 +106,15 @@ class ItqFunctor (LshFunctor):
 
         return super(ItqFunctor, cls).from_config(config_dict, False)
 
-    def __init__(self, mean_vec_cache=None, rotation_cache=None,
-                 bit_length=8, itq_iterations=50, normalize=None,
-                 random_seed=None):
+    def __init__(
+        self,
+        mean_vec_cache: DataElement = None,
+        rotation_cache: DataElement = None,
+        bit_length: int = 8,
+        itq_iterations: int = 50,
+        normalize: Optional[Union[int, float, str]] = None,
+        random_seed: Optional[int] = None
+    ):
         """
         Initialize IQR functor.
 
@@ -121,21 +129,13 @@ class ItqFunctor (LshFunctor):
         :param mean_vec_cache: Optional data element to load/store the mean
             vector when initialized and/or built. When None, this will only be
             stored in memory.
-        :type mean_vec_cache: smqtk.representation.DataElement
-
         :param rotation_cache: Optional data element to load/store the rotation
             matrix when initialize and/or built. When None, this will only be
             stored in memory.
-        :type rotation_cache: smqtk.representation.DataElement
-
         :param bit_length: Number of bits used to represent descriptors (hash
             code). This must be greater than 0. If given an existing
-        :type bit_length: int
-
         :param itq_iterations: Number of iterations for the ITQ algorithm to
             perform. This must be greater than 0.
-        :tyepe itq_iterations: int
-
         :param normalize: Normalize input vectors when fitting and generation
             hash vectors using ``numpy.linalg.norm``. This may either
             be ``None``, disabling normalization, or any valid value that
@@ -147,10 +147,7 @@ class ItqFunctor (LshFunctor):
             normalization value use when training and the same normalization
             value, like the bit_length value, must be used when loading cached
             models again for later use.
-        :type normalize: None | int | float | str
-
         :param random_seed: Integer to use as the random number generator seed.
-        :type random_seed: int
 
         """
         super(ItqFunctor, self).__init__()
@@ -164,31 +161,28 @@ class ItqFunctor (LshFunctor):
 
         # Validate normalization parameter by trying it on a random vector
         if normalize is not None:
-            self._norm_vector(numpy.random.rand(8))
+            self._norm_vector(np.random.rand(8))
 
         # Model components
-        self.mean_vec = None
-        self.rotation = None
+        self.mean_vec: Optional[np.ndarray] = None
+        self.rotation: Optional[np.ndarray] = None
 
         self.load_model()
 
-    def _norm_vector(self, v):
+    def _norm_vector(self, v: np.ndarray) -> np.ndarray:
         """
         Class standard array normalization. Normalized along max dimension (a=0
         for a 1D array, a=1 for a 2D array, etc.).
 
         If ``self.normalize`` is None, ``v`` is returned without modification.
 
-        :param v: Vector to normalize
-        :type v: numpy.ndarray
+        :param v: Float vector to normalize
 
         :return: Returns the normalized version of input array ``v``.
-        :rtype: numpy.ndarray
 
         """
         if self.normalize is not None:
-            n = numpy.linalg.norm(v, self.normalize, v.ndim - 1,
-                                  keepdims=True)
+            n = np.linalg.norm(v, self.normalize, v.ndim - 1, keepdims=True)
             # replace 0's with 1's, preventing div-by-zero
             n[n == 0.] = 1.
             return v / n
@@ -196,7 +190,7 @@ class ItqFunctor (LshFunctor):
         # Normalization off
         return v
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         # If no cache elements (set to None), return default plugin configs.
         c = merge_dict(self.get_default_config(), {
             "bit_length": self.bit_length,
@@ -212,20 +206,20 @@ class ItqFunctor (LshFunctor):
                 to_config_dict(self.rotation_cache_elem)
         return c
 
-    def has_model(self):
+    def has_model(self) -> bool:
         return (self.mean_vec is not None) and (self.rotation is not None)
 
-    def load_model(self):
+    def load_model(self) -> None:
         if (self.mean_vec_cache_elem
                 and not self.mean_vec_cache_elem.is_empty()
                 and self.rotation_cache_elem
                 and not self.rotation_cache_elem.is_empty()):
             self.mean_vec = \
-                numpy.load(BytesIO(self.mean_vec_cache_elem.get_bytes()))
+                np.load(BytesIO(self.mean_vec_cache_elem.get_bytes()))
             self.rotation = \
-                numpy.load(BytesIO(self.rotation_cache_elem.get_bytes()))
+                np.load(BytesIO(self.rotation_cache_elem.get_bytes()))
 
-    def save_model(self):
+    def save_model(self) -> None:
         # Check that we have cache elements set, they are writable and that we
         # have something to save to them.
         if (self.mean_vec_cache_elem and self.rotation_cache_elem and
@@ -234,15 +228,15 @@ class ItqFunctor (LshFunctor):
                 self.mean_vec is not None and self.rotation is not None):
             b = BytesIO()
             # noinspection PyTypeChecker
-            numpy.save(b, self.mean_vec)
+            np.save(b, self.mean_vec)
             self.mean_vec_cache_elem.set_bytes(b.getvalue())
 
             b = BytesIO()
             # noinspection PyTypeChecker
-            numpy.save(b, self.rotation)
+            np.save(b, self.rotation)
             self.rotation_cache_elem.set_bytes(b.getvalue())
 
-    def _find_itq_rotation(self, v, n_iter):
+    def _find_itq_rotation(self, v: np.ndarray, n_iter: int) -> Tuple[np.ndarray, np.ndarray]:
         """
         Finds a rotation of the PCA embedded data. Number of iterations must be
         greater than 0.
@@ -254,25 +248,20 @@ class ItqFunctor (LshFunctor):
 
         :param v: 2D numpy array, [n, c] shape PCA embedded data, ``n`` is the
             number of data elements and ``c`` is the code length.
-        :type v: numpy.core.multiarray.ndarray
-
         :param n_iter: max number of iterations, 50 is usually enough
-        :type n_iter: int
 
         :return: [b, r]
            b: 2D numpy array, [n, c] shape binary matrix,
            r: 2D numpy array, the [c, c] shape rotation matrix found by ITQ
-        :rtype: numpy.core.multiarray.ndarray[bool],
-            numpy.core.multiarray.ndarray[float]
 
         """
         # Pull num bits from PCA-projected descriptors
         bit = v.shape[1]
         # initialize with an orthogonal random rotation
         if self.random_seed is not None:
-            numpy.random.seed(self.random_seed)
-        r = numpy.random.randn(bit, bit)
-        u11, s2, v2 = numpy.linalg.svd(r)
+            np.random.seed(self.random_seed)
+        r = np.random.randn(bit, bit)
+        u11, s2, v2 = np.linalg.svd(r)
         r = u11[:, :bit]
 
         # ITQ to find optimal rotation
@@ -280,12 +269,12 @@ class ItqFunctor (LshFunctor):
         for i in range(n_iter):
             LOG.debug("ITQ iter %d", i + 1)
             # TODO: @numba.jit decorate
-            z = numpy.dot(v, r)
-            ux = numpy.ones(z.shape) * (-1)
+            z = np.dot(v, r)
+            ux = np.ones(z.shape) * (-1)
             ux[z >= 0] = 1
-            c = numpy.dot(ux.transpose(), v)
-            ub, sigma, ua = numpy.linalg.svd(c)
-            r = numpy.dot(ua, ub.transpose())
+            c = np.dot(ux.transpose(), v)
+            ub, sigma, ua = np.linalg.svd(c)
+            r = np.dot(ua, ub.transpose())
 
         # Make B binary matrix using final rotation matrix
         #   - original code returned B transformed by second to last rotation
@@ -293,13 +282,13 @@ class ItqFunctor (LshFunctor):
         #   - Recomputing Z here so as to generate up-to-date B for the final
         #       rotation matrix computed.
         # TODO: Could move this step up one level and just return rotation mat?
-        z = numpy.dot(v, r)
-        b = numpy.zeros(z.shape, dtype=numpy.bool)
+        z = np.dot(v, r)
+        b = np.zeros(z.shape, dtype=np.bool)
         b[z >= 0] = True
 
         return b, r
 
-    def fit(self, descriptors, use_multiprocessing=True):
+    def fit(self, descriptors: Iterable[DescriptorElement], use_multiprocessing: bool = True) -> np.ndarray:
         """
         Fit the ITQ model given the input set of descriptors.
 
@@ -315,7 +304,8 @@ class ItqFunctor (LshFunctor):
 
         :raises RuntimeError: There is already a model loaded
 
-        :return: Matrix hash codes for provided descriptors in order.
+        :return: Matrix hash codes (boolean-valued) for provided descriptors in
+            parallel order to input descriptors.
         :rtype: numpy.ndarray[bool]
 
         """
@@ -330,8 +320,8 @@ class ItqFunctor (LshFunctor):
             pr = ProgressReporter(LOG.debug, dbg_report_interval).start()
             for d in descriptors:
                 descriptors_l.append(d)
-                dbg_report and pr.increment_report()
-            dbg_report and pr.report()
+                dbg_report and pr.increment_report()  # type: ignore
+            dbg_report and pr.report()  # type: ignore
             descriptors = descriptors_l
         if len(descriptors[0].vector()) < self.bit_length:
             raise ValueError("Input descriptors have fewer features than "
@@ -340,7 +330,7 @@ class ItqFunctor (LshFunctor):
                              "result being bound by number of features.")
 
         LOG.info("Creating matrix of descriptors for fitting")
-        x = numpy.asarray(list(
+        x = np.asarray(list(
             parallel_map(lambda d_: d_.vector(), descriptors,
                          use_multiprocessing=use_multiprocessing)
         ))
@@ -350,7 +340,7 @@ class ItqFunctor (LshFunctor):
         x = self._norm_vector(x)
 
         LOG.info("Centering data")
-        self.mean_vec = numpy.mean(x, axis=0)
+        self.mean_vec = np.mean(x, axis=0)
         x -= self.mean_vec
 
         LOG.info("Computing PCA transformation")
@@ -358,19 +348,19 @@ class ItqFunctor (LshFunctor):
         # ``cov`` wants each row to be a feature and each column an observation
         # of those features. Thus, each column should be a descriptor vector,
         # thus we need the transpose here.
-        c = numpy.cov(x.transpose())
+        c = np.cov(x.transpose())
 
         # Direct translation from UNC matlab code
         # - eigen vectors are the columns of ``pc``
         LOG.debug('-- computing linalg.eig')
-        l, pc = numpy.linalg.eig(c)
+        l, pc = np.linalg.eig(c)
         LOG.debug('-- ordering eigen vectors by descending eigen value')
 
         # # Harry translation of original matlab code
         # # - Uses singular values / vectors, not eigen
         # # - singular vectors are the columns of pc
         # LOG.debug('-- computing linalg.svd')
-        # pc, l, _ = numpy.linalg.svd(c)
+        # pc, l, _ = np.linalg.svd(c)
         # LOG.debug('-- ordering singular vectors by descending '
         #                 'singular value')
 
@@ -382,29 +372,28 @@ class ItqFunctor (LshFunctor):
         # Only keep the top ``bit_length`` vectors after ordering by descending
         # value magnitude.
         # - Transposing vectors back to column-vectors.
-        pc_top = numpy.array([p[1] for p in l_pc_ordered[:self.bit_length]])\
+        pc_top = np.array([p[1] for p in l_pc_ordered[:self.bit_length]])\
             .transpose()
         LOG.debug("-- project centered data by PC matrix")
-        v = numpy.dot(x, pc_top)
+        v = np.dot(x, pc_top)
 
         LOG.info("Performing ITQ to find optimal rotation")
         c, self.rotation = self._find_itq_rotation(v, self.itq_iterations)
         # De-adjust rotation with PC vector
-        self.rotation = numpy.dot(pc_top, self.rotation)
+        self.rotation = np.dot(pc_top, self.rotation)
 
         self.save_model()
 
         return c
 
-    def get_hash(self, descriptor):
+    def get_hash(self, descriptor: np.ndarray) -> np.ndarray:
         """
         Get the locality-sensitive hash code for the input descriptor.
 
-        :param descriptor: Descriptor vector we should generate the hash of.
-        :type descriptor: numpy.ndarray[float]
+        :param descriptor: Descriptor vector (float-valued) we should generate
+            the hash of.
 
         :return: Generated bit-vector as a numpy array of booleans.
-        :rtype: numpy.ndarray[bool]
 
         """
         if self.mean_vec is None:
@@ -412,8 +401,8 @@ class ItqFunctor (LshFunctor):
         elif self.rotation is None:
             raise Exception("Can't compute hash code: rotation matrix is none.")
 
-        z = numpy.dot(self._norm_vector(descriptor) - self.mean_vec,
-                      self.rotation)
-        b = numpy.zeros(z.shape, dtype=bool)
+        z = np.dot(self._norm_vector(descriptor) - self.mean_vec,
+                   self.rotation)
+        b = np.zeros(z.shape, dtype=bool)
         b[z >= 0] = True
         return b
