@@ -1,7 +1,7 @@
 from io import BytesIO
 import logging
 import threading
-from typing import cast, List, Optional
+from typing import cast, Any, Dict, Iterable, List, Optional, Tuple, Type, TypeVar
 import warnings
 
 import numpy as np
@@ -17,6 +17,7 @@ from smqtk_indexing.interfaces.hash_index import HashIndex
 
 
 LOG = logging.getLogger(__name__)
+T = TypeVar("T", bound="SkLearnBallTreeHashIndex")
 
 
 try:
@@ -40,11 +41,11 @@ class SkLearnBallTreeHashIndex (HashIndex):
     """
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         return BallTree is not None
 
     @classmethod
-    def get_default_config(cls):
+    def get_default_config(cls) -> Dict[str, Any]:
         """
         Generate and return a default configuration dictionary for this class.
         This will be primarily used for generating what the configuration
@@ -69,7 +70,11 @@ class SkLearnBallTreeHashIndex (HashIndex):
         return c
 
     @classmethod
-    def from_config(cls, config_dict, merge_default=True):
+    def from_config(
+        cls: Type[T],
+        config_dict: Dict,
+        merge_default: bool = True
+    ) -> T:
         """
         Instantiate a new instance of this class given the configuration
         JSON-compliant dictionary encapsulating initialization arguments.
@@ -104,7 +109,12 @@ class SkLearnBallTreeHashIndex (HashIndex):
         return super(SkLearnBallTreeHashIndex, cls).from_config(config_dict,
                                                                 False)
 
-    def __init__(self, cache_element=None, leaf_size=40, random_seed=None):
+    def __init__(
+        self,
+        cache_element: Optional[DataElement] = None,
+        leaf_size: int = 40,
+        random_seed: Optional[int] = None
+    ):
         """
         Initialize Scikit-Learn BallTree index for hash codes.
 
@@ -126,12 +136,11 @@ class SkLearnBallTreeHashIndex (HashIndex):
         self._model_lock = threading.RLock()
 
         # the actual index
-        #: :type: sklearn.neighbors.BallTree
         self.bt: Optional[BallTree] = None
 
         self.load_model()
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         c = merge_dict(self.get_default_config(), {
             'leaf_size': self.leaf_size,
             'random_seed': self.random_seed,
@@ -141,7 +150,7 @@ class SkLearnBallTreeHashIndex (HashIndex):
                                             to_config_dict(self.cache_element))
         return c
 
-    def save_model(self):
+    def save_model(self) -> None:
         """
         Cache a built B-Tree index to the configured cache element. This only
         occurs if we have a non-null cache element and a btree to save.
@@ -179,7 +188,7 @@ class SkLearnBallTreeHashIndex (HashIndex):
                     # No ball tree, empty cache.
                     self.cache_element.set_bytes(b'')
 
-    def load_model(self):
+    def load_model(self) -> None:
         """
         Load a btree index from the configured cache element. This only occurs
         if there is a cache element configured and there are bytes there to
@@ -196,18 +205,15 @@ class SkLearnBallTreeHashIndex (HashIndex):
                          cache['node_data_arr'], cache['node_bounds_arr']]
                     s.extend(tail)
                     s[11] = DistanceMetric.get_metric('hamming')
-                    s = tuple(s)
-                # noinspection PyTypeChecker
-                #: :type: sklearn.neighbors.BallTree
                 self.bt = BallTree.__new__(BallTree)
-                self.bt.__setstate__(s)
+                self.bt.__setstate__(tuple(s))
                 LOG.debug("Loading mode: Done")
 
-    def count(self):
+    def count(self) -> int:
         with self._model_lock:
             return self.bt.data.shape[0] if self.bt else 0
 
-    def _build_bt_internal(self, vec_list):
+    def _build_bt_internal(self, vec_list: List[np.ndarray]) -> None:
         """
         Internal shared BallTree build function given a list of boolean hash
         vectors.
@@ -228,7 +234,7 @@ class SkLearnBallTreeHashIndex (HashIndex):
             self.bt = None
         self.save_model()
 
-    def _build_index(self, hashes):
+    def _build_index(self, hashes: Iterable[np.ndarray]) -> None:
         """
         Internal method to be implemented by sub-classes to build the index
         with the given hash codes (bit-vectors).
@@ -253,7 +259,7 @@ class SkLearnBallTreeHashIndex (HashIndex):
             hash_vector_list = list(map(lambda t: np.array(t), hash_tuple_set))
             self._build_bt_internal(hash_vector_list)
 
-    def _update_index(self, hashes):
+    def _update_index(self, hashes: Iterable[np.ndarray]) -> None:
         """
         Internal method to be implemented by sub-classes to additively update
         the current index with the one or more hash vectors given.
@@ -286,7 +292,7 @@ class SkLearnBallTreeHashIndex (HashIndex):
                 np.concatenate([indexed_hash_vectors, new_hashes], 0)
             )
 
-    def _remove_from_index(self, hashes):
+    def _remove_from_index(self, hashes: Iterable[np.ndarray]) -> None:
         """
         Internal method to be implemented by sub-classes to partially remove
         hashes from this index.
@@ -328,7 +334,7 @@ class SkLearnBallTreeHashIndex (HashIndex):
                 # We can also only be here if hashes was non-zero in size.
                 raise KeyError(np.asarray(next(iter(hashes))))
 
-    def _nn(self, h, n=1):
+    def _nn(self, h: np.ndarray, n: int = 1) -> Tuple[np.ndarray, Tuple[float, ...]]:
         """
         Internal method to be implemented by sub-classes to return the nearest
         `N` neighbor hash codes as bit-vectors to the given hash code

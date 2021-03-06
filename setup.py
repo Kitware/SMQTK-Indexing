@@ -46,6 +46,13 @@ def parse_req_strip_version(filepath: Union[str, Path]) -> List[str]:
     Read requirements file and return the list of requirements specified
     therein but with their version aspects striped.
 
+    We strictly strip version requirements here as we are adhering to the
+    recommended purpose of requirements files: the listing of pinned
+    requirement versions for the purpose of achieving repeatable installations.
+    To that extent, we expect any packages that require minimum runtime
+    requirement versioning to detail that in the `install_requires` section of
+    the below `setup` function.
+
     See pkg_resources.Requirement docs here:
         https://setuptools.readthedocs.io/en/latest/pkg_resources.html#requirement-objects
     """
@@ -56,8 +63,13 @@ def parse_req_strip_version(filepath: Union[str, Path]) -> List[str]:
         "#", "--index-url"
     )
 
-    def filter_req_lines(_filepath: Path) -> Generator[str, None, None]:
-        """ Filter lines from file that are requirements. """
+    def _filter_req_lines(_filepath: Union[str, Path]) -> Generator[Tuple[str, str], None, None]:
+        """ Filter lines from file that are requirements, also splitting out
+        environment markers from appropriate lines.
+
+        Environment markers string may be empty if there are none for a
+        requirement.
+        """
         with open(_filepath, 'r') as _f:
             for _line in _f:
                 _line = _line.strip()
@@ -67,9 +79,11 @@ def parse_req_strip_version(filepath: Union[str, Path]) -> List[str]:
                 elif _line.startswith('-r '):
                     # sub-requirements file specification, yield that file's
                     # req lines.
+                    # ! Requirements/pip does not seem to support requirement
+                    # specifiers on nested requirements file includes.
                     target = _filepath.parent / _line.split(" ")[1]
-                    for _r_line in filter_req_lines(target):
-                        yield _r_line
+                    for req, env_markers in _filter_req_lines(target):
+                        yield req, env_markers
                 elif _line.startswith('-e '):
                     # Indicator for URL-based requirement. Look to the egg
                     # fragment.
@@ -85,11 +99,19 @@ def parse_req_strip_version(filepath: Union[str, Path]) -> List[str]:
                             f"Failed to parse egg name from the requirements "
                             f"line: '{_line}'"
                         )
-                    yield egg
+                    # requirements/pip does not seem to support requirement
+                    # specifiers on URLs.
+                    yield egg, ""
                 else:
-                    yield _line
+                    # Separate out platform deps if any are present, signified
+                    # by a semi-colon
+                    req = _line
+                    env_markers = ""
+                    if ';' in _line:
+                        req, env_markers = map(str.strip, _line.rsplit(';', 1))
+                    yield req, env_markers
 
-    def strip_req_specifier(
+    def _strip_req_specifier(
         req_iter: Iterable[pkg_resources.Requirement]
     ) -> Generator[pkg_resources.Requirement, None, None]:
         """
@@ -103,11 +125,11 @@ def parse_req_strip_version(filepath: Union[str, Path]) -> List[str]:
             r.specifier = packaging.specifiers.SpecifierSet()  # type: ignore
             yield r
 
+    reqs, markers = zip(*_filter_req_lines(filepath))
+    reqs_stripped = list(_strip_req_specifier(pkg_resources.parse_requirements(reqs)))
     return [
-        str(req)
-        for req in strip_req_specifier(
-            pkg_resources.parse_requirements(filter_req_lines(filepath))
-        )
+        f"{str(req)}{f'; {marker}' if marker else ''}"
+        for req, marker in zip(reqs_stripped, markers)
     ]
 
 
@@ -169,7 +191,7 @@ if __name__ == "__main__":
             # 'Windows',  # Not tested yet
         ],
 
-        packages=setuptools.find_packages(exclude=['tests']),
+        packages=setuptools.find_packages(include=[f'{PACKAGE_NAME}*']),
         package_data={PACKAGE_NAME: ["py.typed"]},
         # Required for mypy to be able to find the installed package.
         # https://mypy.readthedocs.io/en/latest/installed_packages.html#installed-packages

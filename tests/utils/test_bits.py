@@ -7,7 +7,7 @@ from smqtk_indexing.utils import bits
 
 class TestBitUtils (unittest.TestCase):
 
-    def test_int_to_bit_vector_large_0(self):
+    def test_int_to_bit_vector_large_0(self) -> None:
         # Need at least one bit to represent 0.
         numpy.testing.assert_array_equal(
             bits.int_to_bit_vector_large(0),
@@ -19,7 +19,7 @@ class TestBitUtils (unittest.TestCase):
             [False, False, False, False, False]
         )
 
-    def test_int_to_bit_vector_large_1(self):
+    def test_int_to_bit_vector_large_1(self) -> None:
         numpy.testing.assert_array_equal(
             bits.int_to_bit_vector_large(1),
             [True]
@@ -29,7 +29,7 @@ class TestBitUtils (unittest.TestCase):
             ([False] * 6) + [True]
         )
 
-    def test_int_to_bit_vector_large_large(self):
+    def test_int_to_bit_vector_large_large(self) -> None:
         # Try large integer bit vectors
         int_val = (2**256) - 1
         expected_vector = [True] * 256
@@ -45,7 +45,7 @@ class TestBitUtils (unittest.TestCase):
             expected_vector
         )
 
-    def test_int_to_bit_vector_large_invalid_bits(self):
+    def test_int_to_bit_vector_large_invalid_bits(self) -> None:
         # Cannot represent 5 in binary using 1 bit.
         self.assertRaises(
             ValueError,

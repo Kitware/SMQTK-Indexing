@@ -1,8 +1,13 @@
+from dataclasses import dataclass
 from itertools import chain, groupby
 import logging
 import pickle
 from os import path as osp
 import threading
+from typing import (
+    cast, Any, Dict, Hashable, Iterable, List, Optional, Sequence, Set, Tuple,
+    Type, TypeVar
+)
 
 import numpy as np
 
@@ -14,13 +19,24 @@ from smqtk_core.configuration import (
 from smqtk_core.dict import merge_dict
 from smqtk_dataprovider.exceptions import ReadOnlyError
 from smqtk_dataprovider.utils.file import safe_create_dir
-from smqtk_descriptors import DescriptorSet
+from smqtk_descriptors import DescriptorElement, DescriptorSet
 from smqtk_descriptors.utils import parallel_map
 from smqtk_indexing import NearestNeighborsIndex
 
 
 CHUNK_SIZE = 5000
 LOG = logging.getLogger(__name__)
+T = TypeVar("T", bound="MRPTNearestNeighborsIndex")
+
+
+@dataclass
+class TreeElement:
+    # (n_feats, depth) shaped float array
+    random_basis: np.ndarray
+    # 1D float array of size based on depth (see L305) TODO: Update line #
+    splits: np.ndarray
+    # Descriptor UIDs belonging to tree leaves.
+    leaves: List[List[Hashable]]
 
 
 class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
@@ -57,11 +73,11 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
     """
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         return True
 
     @classmethod
-    def get_default_config(cls):
+    def get_default_config(cls) -> Dict[str, Any]:
         """
         Generate and return a default configuration dictionary for this class.
         This will be primarily used for generating what the configuration
@@ -89,7 +105,11 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
         return default
 
     @classmethod
-    def from_config(cls, config_dict, merge_default=True):
+    def from_config(
+        cls: Type[T],
+        config_dict: Dict,
+        merge_default: bool = True
+    ) -> T:
         """
         Instantiate a new instance of this class given the configuration
         JSON-compliant dictionary encapsulating initialization arguments.
@@ -121,12 +141,19 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
 
         return super(MRPTNearestNeighborsIndex, cls).from_config(cfg, False)
 
-    def __init__(self, descriptor_set, index_filepath=None,
-                 parameters_filepath=None, read_only=False,
-                 # Parameters for building an index
-                 num_trees=10, depth=1, random_seed=None,
-                 pickle_protocol=pickle.HIGHEST_PROTOCOL,
-                 use_multiprocessing=False):
+    def __init__(
+        self,
+        descriptor_set: DescriptorSet,
+        index_filepath: Optional[str] = None,
+        parameters_filepath: Optional[str] = None,
+        read_only: bool = False,
+        # Parameters for building an index
+        num_trees: int = 10,
+        depth: int = 1,
+        random_seed: Optional[int] = None,
+        pickle_protocol: int = pickle.HIGHEST_PROTOCOL,
+        use_multiprocessing: bool = False
+    ):
         """
         Initialize MRPT index properties. Does not contain a queryable index
         until one is built via the ``build_index`` method, or loaded from
@@ -134,44 +161,23 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
 
         :param descriptor_set: Index in which DescriptorElements will be
             stored.
-        :type descriptor_set: smqtk.representation.DescriptorSet
-
         :param index_filepath: Optional file location to load/store MRPT index
-            when initialized and/or built.
-
-            If not configured, no model files are written to or loaded from
-            disk.
-        :type index_filepath: None | str
-
+            when initialized and/or built. If not configured, no model files
+            are written to or loaded from disk.
         :param parameters_filepath: Optional file location to load/save index
-            parameters determined at build time.
-
-            If not configured, no model files are written to or loaded from
-            disk.
-        :type parameters_filepath: None | str
-
+            parameters determined at build time. If not configured, no model
+            files are written to or loaded from disk.
         :param read_only: If True, `build_index` will error if there is an
             existing index. False by default.
-        :type read_only: bool
-
         :param num_trees: The number of trees that will be generated for the
             data structure
-        :type num_trees: int
-
         :param depth: The depth of the trees
-        :type depth: int
-
         :param random_seed: Integer to use as the random number generator
             seed.
-        :type random_seed: int
-
         :param pickle_protocol: The protocol version to be used by the pickle
             module to serialize class information
-        :type pickle_protocol: int
-
         :param use_multiprocessing: Whether or not to use discrete processes
             as the parallelization agent vs python threads.
-        :type use_multiprocessing: bool
 
         """
         super(MRPTNearestNeighborsIndex, self).__init__()
@@ -181,7 +187,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
         self._descriptor_set = descriptor_set
         self._pickle_protocol = pickle_protocol
 
-        def normpath(p):
+        def normpath(p: Optional[str]) -> Optional[str]:
             return (p and osp.abspath(osp.expanduser(p))) or p
 
         # Lock for model component access.
@@ -200,7 +206,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
         self._num_trees = num_trees
 
         # Set the list of trees to an empty list to have a sane value
-        self._trees = []
+        self._trees: List[TreeElement] = []
 
         #: :type: None | int
         self._rand_seed = None
@@ -212,7 +218,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             LOG.debug("Found existing model files. Loading.")
             self._load_mrpt_model()
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         return {
             "descriptor_set": to_config_dict(self._descriptor_set),
             "index_filepath": self._index_filepath,
@@ -225,16 +231,16 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             "num_trees": self._num_trees,
         }
 
-    def _has_model_files(self):
+    def _has_model_files(self) -> bool:
         """
         check if configured model files are configured and exist
         """
-        return (self._index_filepath and
-                osp.isfile(self._index_filepath) and
-                self._index_param_filepath and
-                osp.isfile(self._index_param_filepath))
+        return bool(self._index_filepath and
+                    osp.isfile(self._index_filepath) and
+                    self._index_param_filepath and
+                    osp.isfile(self._index_param_filepath))
 
-    def _build_multiple_trees(self, chunk_size=CHUNK_SIZE):
+    def _build_multiple_trees(self, chunk_size: int = CHUNK_SIZE) -> None:
         """
         Build an MRPT structure
         """
@@ -264,9 +270,10 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
         # Build all the random bases and the projections at the same time
         # (_num_trees * _depth shouldn't really be that high -- if it is,
         # you're a monster)
+        rs = np.random.RandomState()
         if self._rand_seed is not None:
-            np.random.seed(self._rand_seed)
-        random_bases = np.random.randn(self._num_trees, d, self._depth)
+            rs.seed(self._rand_seed)
+        random_bases = rs.randn(self._num_trees, d, self._depth)
         projs = np.empty((n, self._num_trees, self._depth), dtype=np.float64)
         # Load the data in chunks (because n * d IS high)
         pts_array = np.empty((chunk_size, d), sample_v.dtype)
@@ -305,40 +312,43 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
 
             # Build the tree & store it
             leaves = self._build_single_tree(projs[:, t], splits)
-            leaves = [[desc_ids[idx] for idx in leaf]
-                      for leaf in leaves]
-            self._trees.append({
+            leaves_ids = [[desc_ids[idx] for idx in cast(Iterable[int], leaf)]
+                          for leaf in leaves]
+            self._trees.append(TreeElement(**{
                 'random_basis': (random_bases[t]),
                 'splits': splits,
-                'leaves': leaves
-            })
+                'leaves': leaves_ids,
+            }))
 
-    def _build_single_tree(self, proj, splits):
+    def _build_single_tree(self, proj: np.ndarray, splits: np.ndarray) -> List[np.ndarray]:
         """
         Build a single RP tree for fast kNN search
 
-        :param proj: Projections of the dataset for this tree
-        :type proj: np.ndarray (N, levels)
+        :param proj: Projections of the dataset for this tree as an array of
+            shape (N, levels).
 
         :param splits: (2^depth-1) array of splits corresponding to leaves
                        (tree, where immediate descendants follow parents;
                        index i's children are 2i+1 and 2i+2
-        :type splits: np.ndarray
 
         :return: Tree of splits and list of index arrays for each leaf
-        :rtype: list[np.ndarray]
         """
-        def _build_recursive(indices, level=0, split_index=0):
+        def _build_recursive(
+            indices: np.ndarray,
+            level: int = 0,
+            split_index: int = 0
+        ) -> List[np.ndarray]:
             """
             Descend recursively into tree to build it, setting splits and
             returning indices for leaves
 
-            :param indices: The current set of indices before partitioning
+            :param indices: The current array of (integer) indices before
+                partitioning.
             :param level: The level in the tree
             :param split_index: The index of the split to set
 
-            :return: A list of arrays representing leaf membership
-            :rtype: list[np.ndarray]
+            :return: A list of integer arrays representing leaf membership of
+                source descriptors.
             """
             # If we're at the bottom, no split, just return the set
             if level == self._depth:
@@ -385,7 +395,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
 
         return _build_recursive(np.arange(proj.shape[0]))
 
-    def _save_mrpt_model(self):
+    def _save_mrpt_model(self) -> None:
         LOG.debug(f"Caching index and parameters: {self._index_filepath}, "
                   f"{self._index_param_filepath}")
         if self._index_filepath:
@@ -406,7 +416,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             with open(self._index_param_filepath, "wb") as f:
                 pickle.dump(params, f, self._pickle_protocol)
 
-    def _load_mrpt_model(self):
+    def _load_mrpt_model(self) -> None:
         LOG.debug(f"Loading index and parameters: {self._index_filepath}, "
                   f"{self._index_param_filepath}")
         if self._index_param_filepath:
@@ -424,7 +434,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             with open(self._index_filepath, "rb") as f:
                 self._trees = pickle.load(f)
 
-    def count(self):
+    def count(self) -> int:
         """
         :return: Number of elements in this index.
         :rtype: int
@@ -432,7 +442,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
         # Descriptor-set should already handle concurrency.
         return len(self._descriptor_set)
 
-    def _build_index(self, descriptors):
+    def _build_index(self, descriptors: Iterable[DescriptorElement]) -> None:
         """
         Internal method to be implemented by sub-classes to build the index with
         the given descriptor data elements.
@@ -467,7 +477,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
 
             self._save_mrpt_model()
 
-    def _update_index(self, descriptors):
+    def _update_index(self, descriptors: Iterable[DescriptorElement]) -> None:
         """
         Internal method to be implemented by sub-classes to additively update
         the current index with the one or more descriptor elements given.
@@ -491,7 +501,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             LOG.debug("Updating index by rebuilding with union. ")
             self.build_index(chain(self._descriptor_set, descriptors))
 
-    def _remove_from_index(self, uids):
+    def _remove_from_index(self, uids: Iterable[Hashable]) -> None:
         """
         Internal method to be implemented by sub-classes to partially remove
         descriptors from this index associated with the given UIDs.
@@ -510,7 +520,11 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             self._descriptor_set.remove_many_descriptors(uids)
             self.build_index(self._descriptor_set)
 
-    def _nn(self, d, n=1):
+    def _nn(
+        self,
+        d: DescriptorElement,
+        n: int = 1
+    ) -> Tuple[Tuple[DescriptorElement, ...], Tuple[float, ...]]:
         """
         Internal method to be implemented by sub-classes to return the nearest
         `N` neighbors to the given descriptor element.
@@ -529,12 +543,12 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
         :rtype: (tuple[smqtk.representation.DescriptorElement], tuple[float])
 
         """
-        def _query_single(tree):
+        def _query_single(tree: TreeElement) -> List[Hashable]:
             # Search a single tree for the leaf that matches the query
             # NB: random_basis has shape (levels, N)
-            random_basis = tree['random_basis']
+            random_basis = tree.random_basis
             proj_query = d.vector().dot(random_basis)
-            splits = tree['splits']
+            splits = tree.splits
             idx = 0
             for level in range(depth):
                 split_point = splits[idx]
@@ -547,9 +561,9 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             # idx will be `2^depth - 1` greater than the position of the leaf
             # in the list
             idx -= ((1 << depth) - 1)
-            return tree['leaves'][idx]
+            return tree.leaves[idx]
 
-        def _exact_query(_uuids):
+        def _exact_query(_uuids: Sequence[Hashable]) -> Tuple[Sequence[Hashable], np.ndarray]:
             set_size = len(_uuids)
             LOG.debug(f"Exact query requested with {set_size} descriptors")
 
@@ -560,7 +574,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             for i, desc in enumerate(descriptors):
                 pts_array[i, :] = desc.vector()
 
-            dists = ((pts_array - d_v) ** 2).sum(axis=1)
+            dists: np.ndarray = ((pts_array - d_v) ** 2).sum(axis=1)
 
             if n > dists.shape[0]:
                 LOG.warning(
@@ -587,7 +601,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
                     f"result will be deficient.")
 
             # Take union of all tree hits
-            tree_hits = set()
+            tree_hits: Set[Hashable] = set()
             for t in self._trees:
                 tree_hits.update(_query_single(t))
 

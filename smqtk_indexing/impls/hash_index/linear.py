@@ -1,6 +1,7 @@
 import heapq
 from io import BytesIO
 import threading
+from typing import Any, Dict, Iterable, Optional, Set, Tuple, Type, TypeVar
 
 import numpy
 
@@ -21,6 +22,9 @@ from smqtk_indexing.utils.bits import (
 from smqtk_indexing.utils.metrics import hamming_distance
 
 
+T = TypeVar("T", bound="LinearHashIndex")
+
+
 class LinearHashIndex (HashIndex):
     """
     Basic linear index using heap sort (aka brute force).
@@ -28,11 +32,11 @@ class LinearHashIndex (HashIndex):
     """
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         return True
 
     @classmethod
-    def get_default_config(cls):
+    def get_default_config(cls) -> Dict[str, Any]:
         """
         Generate and return a default configuration dictionary for this class.
         This will be primarily used for generating what the configuration
@@ -56,7 +60,11 @@ class LinearHashIndex (HashIndex):
         return c
 
     @classmethod
-    def from_config(cls, config_dict, merge_default=True):
+    def from_config(
+        cls: Type[T],
+        config_dict: Dict,
+        merge_default: bool = True
+    ) -> T:
         """
         Instantiate a new instance of this class given the configuration
         JSON-compliant dictionary encapsulating initialization arguments.
@@ -89,30 +97,28 @@ class LinearHashIndex (HashIndex):
 
         return super(LinearHashIndex, cls).from_config(config_dict, False)
 
-    def __init__(self, cache_element=None):
+    def __init__(self, cache_element: Optional[DataElement] = None):
         """
         Initialize linear, brute-force hash index.
 
         :param cache_element: Optional data element to cache our index to.
-        :type cache_element: smqtk.representation.DataElement | None
 
         """
         super(LinearHashIndex, self).__init__()
         self.cache_element = cache_element
         # Our index is the set of bit-vectors as an integers/longs.
-        #: :type: set[int]
-        self.index = set()
+        self.index: Set[int] = set()
         self._model_lock = threading.RLock()
         self.load_cache()
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         c = self.get_default_config()
         if self.cache_element:
             c['cache_element'] = merge_dict(c['cache_element'],
                                             to_config_dict(self.cache_element))
         return c
 
-    def load_cache(self):
+    def load_cache(self) -> None:
         """
         Load from file cache if we have one
         """
@@ -121,7 +127,7 @@ class LinearHashIndex (HashIndex):
                 buff = BytesIO(self.cache_element.get_bytes())
                 self.index = set(numpy.load(buff))
 
-    def save_cache(self):
+    def save_cache(self) -> None:
         """
         save to file cache if configures
         """
@@ -135,11 +141,11 @@ class LinearHashIndex (HashIndex):
                 numpy.save(buff, tuple(self.index))
                 self.cache_element.set_bytes(buff.getvalue())
 
-    def count(self):
+    def count(self) -> int:
         with self._model_lock:
             return len(self.index)
 
-    def _build_index(self, hashes):
+    def _build_index(self, hashes: Iterable[numpy.ndarray]) -> None:
         """
         Internal method to be implemented by sub-classes to build the index with
         the given hash codes (bit-vectors).
@@ -158,7 +164,7 @@ class LinearHashIndex (HashIndex):
             self.index = new_index
             self.save_cache()
 
-    def _update_index(self, hashes):
+    def _update_index(self, hashes: Iterable[numpy.ndarray]) -> None:
         """
         Internal method to be implemented by sub-classes to additively update
         the current index with the one or more hash vectors given.
@@ -175,7 +181,7 @@ class LinearHashIndex (HashIndex):
             self.index.update(set(map(bit_vector_to_int_large, hashes)))
             self.save_cache()
 
-    def _remove_from_index(self, hashes):
+    def _remove_from_index(self, hashes: Iterable[numpy.ndarray]) -> None:
         """
         Internal method to be implemented by sub-classes to partially remove
         hashes from this index.
@@ -197,7 +203,7 @@ class LinearHashIndex (HashIndex):
             self.index = self.index - h_int_set
             self.save_cache()
 
-    def _nn(self, h, n=1):
+    def _nn(self, h: numpy.ndarray, n: int = 1) -> Tuple[numpy.ndarray, Tuple[float, ...]]:
         """
         Internal method to be implemented by sub-classes to return the nearest
         `N` neighbor hash codes as bit-vectors to the given hash code
@@ -232,5 +238,7 @@ class LinearHashIndex (HashIndex):
                                 )
             distances = map(hamming_distance, near_codes,
                             [h_int] * len(near_codes))
-            return [int_to_bit_vector_large(c, bits) for c in near_codes], \
-                   [d / float(bits) for d in distances]
+            return (
+                numpy.row_stack([int_to_bit_vector_large(c, bits) for c in near_codes]),
+                tuple(d / float(bits) for d in distances)
+            )

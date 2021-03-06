@@ -7,7 +7,10 @@ import collections
 import itertools
 import logging
 import multiprocessing
-from typing import Deque, Dict, Hashable, Set
+from typing import (
+    Any, Callable, Deque, Dict, Hashable, Iterable, List, Optional, Set, Tuple,
+    Type, TypeVar
+)
 
 import numpy
 
@@ -19,7 +22,7 @@ from smqtk_core.configuration import (
 from smqtk_core.dict import merge_dict
 from smqtk_dataprovider import KeyValueStore
 from smqtk_dataprovider.exceptions import ReadOnlyError
-from smqtk_descriptors import DescriptorSet
+from smqtk_descriptors import DescriptorElement, DescriptorSet
 from smqtk_descriptors.utils import parallel_map
 from smqtk_indexing import HashIndex, LshFunctor, NearestNeighborsIndex
 from smqtk_indexing.impls.hash_index.linear import LinearHashIndex
@@ -29,6 +32,7 @@ from smqtk_indexing.utils.progress_reporter import ProgressReporter
 
 
 LOG = logging.getLogger(__name__)
+T_LSH = TypeVar("T_LSH", bound="LSHNearestNeighborIndex")
 
 
 class LSHNearestNeighborIndex (NearestNeighborsIndex):
@@ -53,12 +57,12 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
     """
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         # This "shell" class is always usable, no special dependencies.
         return True
 
     @classmethod
-    def get_default_config(cls):
+    def get_default_config(cls) -> Dict[str, Any]:
         """
         Generate and return a default configuration dictionary for this class.
         This will be primarily used for generating what the configuration
@@ -95,7 +99,11 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
         return default
 
     @classmethod
-    def from_config(cls, config_dict, merge_default=True):
+    def from_config(
+        cls: Type[T_LSH],
+        config_dict: Dict,
+        merge_default: bool = True
+    ) -> T_LSH:
         """
         Instantiate a new instance of this class given the configuration
         JSON-compliant dictionary encapsulating initialization arguments.
@@ -148,9 +156,15 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
 
         return super(LSHNearestNeighborIndex, cls).from_config(merged, False)
 
-    def __init__(self, lsh_functor, descriptor_set, hash2uuids_kvstore,
-                 hash_index=None,
-                 distance_method='cosine', read_only=False):
+    def __init__(
+        self,
+        lsh_functor: LshFunctor,
+        descriptor_set: DescriptorSet,
+        hash2uuids_kvstore: KeyValueStore,
+        hash_index: Optional[HashIndex] = None,
+        distance_method: str = 'cosine',
+        read_only: bool = False
+    ):
         """
         Initialize LSH algorithm with a hashing functor, descriptor index and
         hash nearest-neighbor index.
@@ -169,26 +183,18 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
         `hash_index`) are read-only.
 
         :param lsh_functor: LSH functor implementation instance.
-        :type lsh_functor: smqtk.algorithms.nn_index.lsh.functors.LshFunctor
-
         :param descriptor_set: Index in which DescriptorElements will be
             stored.
-        :type descriptor_set: smqtk.representation.DescriptorSet
-
         :param hash2uuids_kvstore: KeyValueStore instance to use for linking a
             hash code, as an integer, in the ``hash_index`` with one or more
             ``DescriptorElement`` instance UUIDs in the given
             ``descriptor_set``.
-        :type hash2uuids_kvstore: smqtk.representation.KeyValueStore
-
         :param hash_index: ``HashIndex`` for indexing unique hash codes using
             hamming distance.
 
             If this is set to ``None`` (default), we will perform brute-force
             linear neighbor search for each query based on the hash codes
             currently in the hash2uuid index using hamming distance
-        :type hash_index: smqtk.algorithms.nn_index.hash_index.HashIndex | None
-
         :param distance_method: String label of distance method to use for
             determining descriptor similarity (after finding near hashes for a
             given query).
@@ -200,12 +206,9 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
                     descriptors.
                 - "hik": Histogram intersection distance between two
                     descriptors.
-        :type distance_method: str
-
         :param read_only: If this index should only read from its configured
             descriptor and hash indexes. This will cause a ``ReadOnlyError`` to
             be raised from build_index.
-        :type read_only: bool
 
         :raises ValueError: Invalid distance method specified.
 
@@ -230,9 +233,13 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
         self._distance_function = self._get_dist_func(self.distance_method)
 
     @staticmethod
-    def _get_dist_func(distance_method):
+    def _get_dist_func(
+        distance_method: str
+    ) -> Callable[[numpy.ndarray, numpy.ndarray], float]:
         """
-        Return appropriate distance function given a string label
+        Return appropriate distance function given a string label.
+
+        :raises ValueError: Unrecognized distance method identifier is passed.
         """
         if distance_method == "euclidean":
             return metrics.euclidean_distance
@@ -246,7 +253,7 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
             raise ValueError("Invalid distance method label. Must be one of "
                              "['euclidean' | 'cosine' | 'hik']")
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         hi_conf = None
         if self.hash_index is not None:
             hi_conf = to_config_dict(self.hash_index)
@@ -260,12 +267,11 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
             "read_only": self.read_only,
         }
 
-    def count(self):
+    def count(self) -> int:
         """
         :return: Maximum number of descriptors reference-able via a
             nearest-neighbor query (count of descriptor index). Actual return
             may be smaller of hash2uuids mapping is not complete.
-        :rtype: int
         """
         with self._model_lock:
             c = 0
@@ -273,7 +279,7 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
                 c += len(set_v)
             return c
 
-    def _build_index(self, descriptors):
+    def _build_index(self, descriptors: Iterable[DescriptorElement]) -> None:
         """
         Internal method to be implemented by sub-classes to build the index
         with the given descriptor data elements.
@@ -287,8 +293,6 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
 
         :param descriptors: Iterable of descriptor elements to build index
             over.
-        :type descriptors:
-            collections.abc.Iterable[smqtk.representation.DescriptorElement]
 
         """
         with self._model_lock:
@@ -324,7 +328,7 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
                 # a build is supposed to clear previous state.
                 self.hash_index.build_index(hash_vectors)
 
-    def _update_index(self, descriptors):
+    def _update_index(self, descriptors: Iterable[DescriptorElement]) -> None:
         """
         Internal method to be implemented by sub-classes to additively update
         the current index with the one or more descriptor elements given.
@@ -337,8 +341,6 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
 
         :param descriptors: Iterable of descriptor elements to add to this
             index.
-        :type descriptors:
-            collections.abc.Iterable[smqtk.representation.DescriptorElement]
 
         """
         with self._model_lock:
@@ -379,12 +381,11 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
                 LOG.debug("Updating hash index structure.")
                 self.hash_index.update_index(hash_vectors)
 
-    def _remove_from_index(self, uids):
+    def _remove_from_index(self, uids: Iterable[Hashable]) -> None:
         """
         Remove descriptors from this index associated with the given UIDs.
 
         :param uids: Iterable of UIDs of descriptors to remove from this index.
-        :type uids: collections.abc.Iterable[collections.abc.Hashable]
 
         :raises KeyError: One or more UIDs provided do not match any stored
             descriptors.  The index should not be modified.
@@ -446,7 +447,11 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
             # Remove descriptors from our set matching the given UIDs.
             self.descriptor_set.remove_many_descriptors(uids)
 
-    def _nn(self, d, n=1):
+    def _nn(
+        self,
+        d: DescriptorElement,
+        n: int = 1
+    ) -> Tuple[Tuple[DescriptorElement, ...], Tuple[float, ...]]:
         """
         Internal method to be implemented by sub-classes to return the nearest
         `N` neighbors to the given descriptor element.
@@ -455,21 +460,17 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
         is a vector in ``d`` and our index is not empty.
 
         :param d: Descriptor element to compute the neighbors of.
-        :type d: smqtk.representation.DescriptorElement
-
         :param n: Number of nearest neighbors to find.
-        :type n: int
 
         :return: Tuple of nearest N DescriptorElement instances, and a tuple of
             the distance values to those neighbors.
-        :rtype: (tuple[smqtk.representation.DescriptorElement], tuple[float])
 
         """
         LOG.debug("generating hash for descriptor")
         d_v = d.vector()
         d_h = self.lsh_functor.get_hash(d_v)
 
-        def comp_descr_dist(d2_v):
+        def comp_descr_dist(d2_v: numpy.ndarray) -> float:
             return self._distance_function(d_v, d2_v)
 
         with self._model_lock:
@@ -484,12 +485,11 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
             near_hashes, _ = hi.nn(d_h, n)
 
             LOG.debug("getting UUIDs of descriptors for nearby hashes")
-            neighbor_uuids = []
+            neighbor_uuids: List[Hashable] = []
             for h_int in map(bit_vector_to_int_large, near_hashes):
                 # If descriptor hash not in our map, we effectively skip it.
                 # Get set of descriptor UUIDs for a hash code.
-                #: :type: set[collections.abc.Hashable]
-                near_uuids = self.hash2uuids_kvstore.get(h_int, set())
+                near_uuids: Set[Hashable] = self.hash2uuids_kvstore.get(h_int, set())
                 # Accumulate matching descriptor UUIDs to a list.
                 neighbor_uuids.extend(near_uuids)
             LOG.debug("-- matched %d UUIDs", len(neighbor_uuids))
@@ -511,9 +511,7 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
         ordered = sorted(zip(neighbors, distances),
                          key=lambda p: p[1])
         LOG.debug(f'-- slicing top n={n}')
-        return list(zip(*(ordered[:n])))
-
-
-# Marking only LSH as the valid impl, otherwise the hash index default would
-#   also be picked up (because it also descends from NearestNeighborsIndex).
-SMQTK_PLUGIN_CLASS = LSHNearestNeighborIndex
+        r_descrs: Tuple[DescriptorElement, ...]
+        r_dists: Tuple[float, ...]
+        r_descrs, r_dists = zip(*(ordered[:n]))
+        return r_descrs, r_dists

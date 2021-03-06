@@ -3,6 +3,8 @@ Interface and plugin getter for LSH algorithm hash generation functors.
 """
 import abc
 
+import numpy as np
+
 from smqtk_core import Configurable, Pluggable
 
 
@@ -24,18 +26,16 @@ class LshFunctor (Configurable, Pluggable):
 
     """
 
-    def __call__(self, descriptor):
+    def __call__(self, descriptor: np.ndarray) -> np.ndarray:
         return self.get_hash(descriptor)
 
     @abc.abstractmethod
-    def get_hash(self, descriptor):
+    def get_hash(self, descriptor: np.ndarray) -> np.ndarray:
         """
         Get the locality-sensitive hash code for the input descriptor.
 
         :param descriptor: Descriptor vector we should generate the hash of.
-        :type descriptor: numpy.ndarray[float]
 
         :return: Generated bit-vector as a numpy array of booleans.
-        :rtype: numpy.ndarray[bool]
 
         """

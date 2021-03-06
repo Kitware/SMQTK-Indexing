@@ -1,17 +1,9 @@
-"""
-LICENCE
--------
-Copyright 2015 by Kitware, Inc. All Rights Reserved. Please refer to
-KITWARE_LICENSE.TXT for licensing information, or contact General Counsel,
-Kitware, Inc., 28 Corporate Drive, Clifton Park, NY 12065.
-
-"""
-
 from math import acos, pi
+
 import numpy as np
 
 
-def histogram_intersection_distance(a, b):
+def histogram_intersection_distance(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """
     Compute the histogram intersection distance between given histogram
     vectors or matrices ``a`` and ``b``, returning a value between ``0.0`` and
@@ -34,13 +26,9 @@ def histogram_intersection_distance(a, b):
       vectors.
 
     :param a: Histogram or array of histograms ``a``
-    :type a: numpy.core.multiarray.ndarray
-
     :param b: Histogram or array of histograms ``b``
-    :type b: numpy.core.multiarray.ndarray
 
     :return: Float or array of float distance (inverse percent intersection).
-    :rtype: float or numpy.core.multiarray.ndarray
     """
     # TODO: input value checks?
     # Which axis to sum on. If there is a matrix involved, its along column,
@@ -57,7 +45,7 @@ def histogram_intersection_distance(a, b):
     return 1. - ((np.add(a, b) - np.abs(np.subtract(a, b))).sum(sum_axis) * 0.5)
 
 
-def histogram_intersection_distance_fast(i, j):
+def histogram_intersection_distance_fast(i: np.ndarray, j: np.ndarray) -> float:
     """
     Compute the histogram intersection percent relation between given 1D
     histogram vectors ``a`` and ``b``, returning a value between 0.0 and 1.0.
@@ -73,40 +61,31 @@ def histogram_intersection_distance_fast(i, j):
         input).
 
     :param i: Histogram ``i``
-    :type i: numpy.core.multiarray.ndarray
-
     :param j: Histogram ``j``
-    :type j: numpy.core.multiarray.ndarray
 
     :return: Float inverse percent intersection amount.
-    :rtype: float
 
     """
     return 1.0 - ((i + j - np.abs(i - j)).sum() * 0.5)
 
 
-def euclidean_distance(i, j):
+def euclidean_distance(i: np.ndarray, j: np.ndarray) -> np.ndarray:
     """
     Compute euclidean distance between two N-dimensional point vectors.
 
     :param i: Vector i
-    :type i: np.ndarray
-
     :param j: Vector j
-    :type j: np.ndarray
 
     :return: Float distance.
-    :rtype: float | np.ndarray
 
     """
     sum_axis = 1
     if i.ndim == 1 and j.ndim == 1:
         sum_axis = 0
-    # noinspection PyTypeChecker
     return np.sqrt(np.square(i - j).sum(sum_axis))
 
 
-def cosine_similarity(i, j):
+def cosine_similarity(i: np.ndarray, j: np.ndarray) -> float:
     """
     Angular similarity between vectors i and j. Results in a value between 1,
     where i and j are exactly the same, to -1, meaning exactly opposite. 0
@@ -116,14 +95,9 @@ def cosine_similarity(i, j):
     See: http://en.wikipedia.org/wiki/Cosine_similarity
 
     :param i: Vector i
-    :type i: numpy.core.multiarray.ndarray
-
     :param j: Vector j
-    :type j: numpy.core.multiarray.ndarray
 
     :return: Float similarity.
-    :rtype: float
-
     """
     # numpy.linalg.norm is Frobenius norm (vector magnitude)
     # return numpy.dot(i, j) / (numpy.linalg.norm(i) * numpy.linalg.norm(j))
@@ -135,7 +109,7 @@ def cosine_similarity(i, j):
     return np.dot(i, j) / (np.sqrt(i.dot(i)) * np.sqrt(j.dot(j)))
 
 
-def cosine_distance(i, j, pos_vectors=True):
+def cosine_distance(i: np.ndarray, j: np.ndarray, pos_vectors: bool = True) -> float:
     """
     Cosine similarity converted into angular distance.
 
@@ -143,24 +117,17 @@ def cosine_distance(i, j, pos_vectors=True):
     "Angular distance and similarity".
 
     :param i: Vector i
-    :type i: numpy.core.multiarray.ndarray
-
     :param j: Vector j
-    :type j: numpy.core.multiarray.ndarray
-
     :param pos_vectors: If we expect vector elements to always be positive.
         Default value is True (common case).
-    :type pos_vectors: bool
 
     :return: Float distance between [0, 1] range.
-    :rtype: float
-
     """
     sim = max(-1.0, min(cosine_similarity(i, j), 1))
     return (1 + bool(pos_vectors)) * acos(sim) / pi
 
 
-def hamming_distance(i, j):
+def hamming_distance(i: int, j: int) -> int:
     """
     Return the hamming distance between the two given pythonic integers, or the
     number of places where the bits differ.
@@ -170,13 +137,9 @@ def hamming_distance(i, j):
     execute correctly regardless whether i/j is 32 bits or 512 bits, etc."
 
     :param i: First integer.
-    :type i: int | long
     :param j: Second integer.
-    :type j: int | long
 
     :return: Integer hamming distance between the two values.
-    :rtype: int | long
-
     """
     # TODO: Find something better than this?
     return bin(i ^ j).count('1')

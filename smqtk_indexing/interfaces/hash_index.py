@@ -1,4 +1,7 @@
 import abc
+from typing import Iterable, Sequence, Tuple
+
+import numpy as np
 
 from smqtk_core import Configurable, Pluggable
 from smqtk_indexing.utils.iter_validation import check_empty_iterable
@@ -17,11 +20,11 @@ class HashIndex (Configurable, Pluggable):
     return the same bit vector more than once for any query.
     """
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.count()
 
     @staticmethod
-    def _empty_iterable_exception():
+    def _empty_iterable_exception() -> BaseException:
         """
         Create the exception instance to be thrown when no descriptors are
         provided to ``build_index``/``update_index``.
@@ -32,7 +35,7 @@ class HashIndex (Configurable, Pluggable):
         """
         return ValueError("No hash vectors in provided iterable.")
 
-    def build_index(self, hashes):
+    def build_index(self, hashes: Iterable[np.ndarray]) -> None:
         """
         Build the index with the given hash codes (bit-vectors).
 
@@ -42,15 +45,14 @@ class HashIndex (Configurable, Pluggable):
 
         :raises ValueError: No data available in the given iterable.
 
-        :param hashes: Iterable of descriptor elements to build index
+        :param hashes: Iterable of hash vectors (boolean-valued) to build index
             over.
-        :type hashes: collections.abc.Iterable[numpy.ndarray[bool]]
 
         """
         check_empty_iterable(hashes, self._build_index,
                              self._empty_iterable_exception())
 
-    def update_index(self, hashes):
+    def update_index(self, hashes: Iterable[np.ndarray]) -> None:
         """
         Additively update the current index with the one or more hash vectors
         given.
@@ -62,19 +64,17 @@ class HashIndex (Configurable, Pluggable):
 
         :param hashes: Iterable of numpy boolean hash vectors to add to this
             index.
-        :type hashes: collections.abc.Iterable[numpy.ndarray[bool]]
 
         """
         check_empty_iterable(hashes, self._update_index,
                              self._empty_iterable_exception())
 
-    def remove_from_index(self, hashes):
+    def remove_from_index(self, hashes: Iterable[np.ndarray]) -> None:
         """
         Partially remove hashes from this index.
 
         :param hashes: Iterable of numpy boolean hash vectors to remove from
             this index.
-        :type hashes: collections.abc.Iterable[numpy.ndarray[bool]]
 
         :raises ValueError: No data available in the given iterable.
         :raises KeyError: One or more UIDs provided do not match any stored
@@ -84,7 +84,7 @@ class HashIndex (Configurable, Pluggable):
         check_empty_iterable(hashes, self._remove_from_index,
                              self._empty_iterable_exception())
 
-    def nn(self, h, n=1):
+    def nn(self, h: np.ndarray, n: int = 1) -> Tuple[np.ndarray, Sequence[float]]:
         """
         Return the nearest `N` neighbor hash codes as bit-vectors to the given
         hash code bit-vector.
@@ -95,16 +95,12 @@ class HashIndex (Configurable, Pluggable):
 
         :raises ValueError: Current index is empty.
 
-        :param h: Hash code to compute the neighbors of. Should be the same bit
-            length as indexed hash codes.
-        :type h: numpy.ndarray[bool]
-
+        :param h: Hash code vectors (boolean-valued) to compute the neighbors
+            of. Should be the same bit length as indexed hash codes.
         :param n: Number of nearest neighbors to find.
-        :type n: int
 
         :return: Tuple of nearest N hash codes and a tuple of the distance
             values to those neighbors.
-        :rtype: (tuple[numpy.ndarray[bool]], tuple[float])
 
         """
         # Only check for count because we're no longer dealing with descriptor
@@ -114,15 +110,13 @@ class HashIndex (Configurable, Pluggable):
         return self._nn(h, n)
 
     @abc.abstractmethod
-    def count(self):
+    def count(self) -> int:
         """
         :return: Number of elements in this index.
-        :rtype: int
         """
-        pass
 
     @abc.abstractmethod
-    def _build_index(self, hashes):
+    def _build_index(self, hashes: Iterable[np.ndarray]) -> None:
         """
         Internal method to be implemented by sub-classes to build the index with
         the given hash codes (bit-vectors).
@@ -131,14 +125,13 @@ class HashIndex (Configurable, Pluggable):
         method shall not add to the existing index nor raise an exception to as
         to protect the current index.
 
-        :param hashes: Iterable of descriptor elements to build index
+        :param hashes: Iterable of hash vectors (boolean-valued) to build index
             over.
-        :type hashes: collections.abc.Iterable[numpy.ndarray[bool]]
 
         """
 
     @abc.abstractmethod
-    def _update_index(self, hashes):
+    def _update_index(self, hashes: Iterable[np.ndarray]) -> None:
         """
         Internal method to be implemented by sub-classes to additively update
         the current index with the one or more hash vectors given.
@@ -148,19 +141,17 @@ class HashIndex (Configurable, Pluggable):
 
         :param hashes: Iterable of numpy boolean hash vectors to add to this
             index.
-        :type hashes: collections.abc.Iterable[numpy.ndarray[bool]]
 
         """
 
     @abc.abstractmethod
-    def _remove_from_index(self, hashes):
+    def _remove_from_index(self, hashes: Iterable[np.ndarray]) -> None:
         """
         Internal method to be implemented by sub-classes to partially remove
         hashes from this index.
 
         :param hashes: Iterable of numpy boolean hash vectors to remove from
             this index.
-        :type hashes: collections.abc.Iterable[numpy.ndarray[bool]]
 
         :raises KeyError: One or more hashes provided do not match any stored
             hashes.  The index should not be modified.
@@ -168,7 +159,7 @@ class HashIndex (Configurable, Pluggable):
         """
 
     @abc.abstractmethod
-    def _nn(self, h, n=1):
+    def _nn(self, h: np.ndarray, n: int = 1) -> Tuple[np.ndarray, Tuple[float, ...]]:
         """
         Internal method to be implemented by sub-classes to return the nearest
         `N` neighbor hash codes as bit-vectors to the given hash code
@@ -181,15 +172,11 @@ class HashIndex (Configurable, Pluggable):
         When this internal method is called, we have already checked that our
         index is not empty.
 
-        :param h: Hash code to compute the neighbors of. Should be the same bit
-            length as indexed hash codes.
-        :type h: numpy.ndarray[bool]
-
+        :param h: Hash code vector (boolean-valued) to compute the neighbors
+            of. Should be the same bit length as indexed hash codes.
         :param n: Number of nearest neighbors to find.
-        :type n: int
 
         :return: Tuple of nearest N hash codes and a tuple of the distance
             values to those neighbors.
-        :rtype: (tuple[numpy.ndarray[bool]], tuple[float])
 
         """

@@ -5,7 +5,10 @@ import multiprocessing
 import numpy as np
 import os
 import tempfile
-from typing import Dict
+from typing import (
+    Any, Dict, Iterable, Hashable, List, Optional, Sequence, Tuple, Type,
+    TypeVar, Union
+)
 import warnings
 
 from smqtk_core.configuration import \
@@ -31,6 +34,7 @@ except ImportError as ex:
 
 
 LOG = logging.getLogger(__name__)
+T_FNNI = TypeVar("T_FNNI", bound="FaissNearestNeighborsIndex")
 
 
 # TODO: Add metric constructor option, append to ``faiss.METRIC_{}`` for
@@ -42,12 +46,11 @@ LOG = logging.getLogger(__name__)
 #       descriptors as a matrix into memory is too much.
 
 
-def metric_label_to_const():
+def metric_label_to_const() -> Dict[str, int]:
     """
     :return: Dictionary mapping a string label to the FAISS metric constant
         integer value for the associated label. This is introspected from the
         ``faiss.METRIC_*`` attributes. Labels will be in lowercase.
-    :rtype: dict[str, int]
     """
     try:
         m: Dict[str, int] = metric_label_to_const.cache  # type: ignore
@@ -71,7 +74,6 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
     def gpu_supported() -> bool:
         """
         :return: If FAISS seems to have GPU support or not.
-        :rtype: bool
         """
         # Test if the GPU version is available
         if hasattr(faiss, "StandardGpuResources"):
@@ -80,12 +82,12 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
             return False
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         # if underlying library is not found, the import above will error
         return faiss is not None
 
     @classmethod
-    def get_default_config(cls):
+    def get_default_config(cls) -> Dict[str, Any]:
         """
         Generate and return a default configuration dictionary for this class.
         This will be primarily used for generating what the configuration
@@ -102,7 +104,6 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
         class.
 
         :return: Default configuration dictionary for the class.
-        :rtype: dict
 
         """
         default = super(FaissNearestNeighborsIndex, cls).get_default_config()
@@ -122,7 +123,11 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
         return default
 
     @classmethod
-    def from_config(cls, config_dict, merge_default=True):
+    def from_config(
+        cls: Type[T_FNNI],
+        config_dict: Dict,
+        merge_default: bool = True
+    ) -> T_FNNI:
         """
         Instantiate a new instance of this class given the configuration
         JSON-compliant dictionary encapsulating initialization arguments.
@@ -132,14 +137,10 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
 
         :param config_dict: JSON compliant dictionary encapsulating
             a configuration.
-        :type config_dict: dict
-
         :param merge_default: Merge the given configuration on top of the
             default provided by ``get_default_config``.
-        :type merge_default: bool
 
         :return: Constructed instance from the provided config.
-        :rtype: LSHNearestNeighborIndex
 
         """
         if merge_default:
@@ -176,11 +177,21 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
 
         return super(FaissNearestNeighborsIndex, cls).from_config(cfg, False)
 
-    def __init__(self, descriptor_set, idx2uid_kvs, uid2idx_kvs,
-                 index_element=None, index_param_element=None,
-                 read_only=False, factory_string='IDMap,Flat',
-                 metric_type="l2", ivf_nprobe=1, use_gpu=False, gpu_id=0,
-                 random_seed=None):
+    def __init__(
+        self,
+        descriptor_set: DescriptorSet,
+        idx2uid_kvs: KeyValueStore,
+        uid2idx_kvs: KeyValueStore,
+        index_element: Optional[DataElement] = None,
+        index_param_element: Optional[DataElement] = None,
+        read_only: bool = False,
+        factory_string: str = 'IDMap,Flat',
+        metric_type: Union[str, int] = "l2",
+        ivf_nprobe: int = 1,
+        use_gpu: bool = False,
+        gpu_id: int = 0,
+        random_seed: Optional[int] = None
+    ):
         """
         Initialize FAISS index properties. Does not contain a queryable index
         until one is built via the ``build_index`` method, or loaded from
@@ -188,63 +199,42 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
 
         :param descriptor_set: Set in which indexed DescriptorElements will be
             stored.
-        :type descriptor_set: smqtk.representation.DescriptorSet
-
         :param idx2uid_kvs: Key-value storage mapping FAISS indexed vector
             index to descriptor UID.  This should be the inverse of
             `uid2idx_kvs`.
-        :type idx2uid_kvs: smqtk.representation.KeyValueStore
-
         :param uid2idx_kvs: Key-value storage mapping descriptor UIDs to FAISS
             indexed vector index.  This should be the inverse of `idx2uid_kvs`.
-        :type uid2idx_kvs: smqtk.representation.KeyValueStore
-
         :param index_element: Optional DataElement used to load/store the
             index. When None, the index will only be stored in memory.
-        :type index_element: None | smqtk.representation.DataElement
-
         :param index_param_element: Optional DataElement used to load/store
             the index parameters. When None, the index will only be stored in
             memory.
-        :type index_param_element: None | smqtk.representation.DataElement
-
         :param read_only: If True, `build_index` will error if there is an
             existing index. False by default.
-        :type read_only: bool
-
         :param factory_string: String to pass to FAISS' `index_factory`;
             see the documentation [1] on this feature for more details.
-        :type factory_string: str | unicode
-
-        :param str|int metric_type:
+        :param metric_type:
             String label of the FAISS metric type to use, or the integer
             constant value for a valid type. A value error if the label or
             integer does match a valid metric type.
-
-        :param int ivf_nprobe:
+        :param ivf_nprobe:
             If an IVF-type index is loaded, optionally use this as the
             ``nprobe`` value at query time.
             This should be an integer greater than 1 to be effective.
             This parameter is ignore if the loaded index is not IVF-based.
             When this is None the FAISS IVF default value for ``nprobe`` is
             used (1).
-
         :param use_gpu: Use a GPU index if GPU support is available.  A
             RuntimeError is thrown during instance construction if GPU support
             is not available and this flag is true.  See the following for
             FAISS GPU documentation and limitations:
 
                 https://github.com/facebookresearch/faiss/wiki/Faiss-on-the-GPU
-        :type use_gpu: bool
-
         :param gpu_id: If the GPU implementation is available for FAISS
             (automatically determined) use the GPU with this device number /
             ID.
-        :type gpu_id: int
-
         :param random_seed: Integer to use as the random number generator
             seed.
-        :type random_seed: int | None
 
         [1]: https://github.com/facebookresearch/faiss/wiki/High-level-interface-and-auto-tuning#index-factory
 
@@ -266,7 +256,7 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
         self.factory_string = str(factory_string)
         self._metric_type = metric_type
         try:
-            self._metric_type_const = m_l2c[metric_type.lower()]
+            self._metric_type_const = m_l2c[getattr(metric_type, 'lower')()]
         except (KeyError, AttributeError):
             # Value provided did not match one of the keys, or was not a string
             # (no `.lower()` attribute). If not a valid integer value in the
@@ -303,13 +293,12 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
         #   https://github.com/facebookresearch/faiss/wiki/Threads-and-asynchronous-calls#thread-safety
         self._model_lock = multiprocessing.RLock()
         # Placeholder for FAISS model instance.
-        #: :type: None | faiss.Index
-        self._faiss_index = None
+        self._faiss_index: Optional["faiss.Index"] = None
 
         # Load the index/parameters if one exists
         self._load_faiss_model()
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         config = {
             "descriptor_set": to_config_dict(self._descriptor_set),
             "uid2idx_kvs": to_config_dict(self._uid2idx_kvs),
@@ -331,16 +320,17 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
 
         return config
 
-    def _convert_index(self, faiss_index):
+    def _convert_index(
+        self,
+        faiss_index: "faiss.Index"
+    ) -> "faiss.Index":
         """
         Convert the given index to a GpuIndex if `use_gpu` is True, otherwise
         return the index given (no-op).
 
         :param faiss_index: Index to convert.
-        :type faiss_index: faiss.Index
 
         :return: Optionally converted index.
-        :rtype: faiss.Index | faiss.GpuIndex
 
         """
         # If we're to use a GPU index and what we're given isn't already a GPU
@@ -353,42 +343,46 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
                                                  self._gpu_id, faiss_index)
         return faiss_index
 
-    def _index_factory_wrapper(self, d, factory_string, metric_type_int):
+    def _index_factory_wrapper(
+        self,
+        d: int,
+        factory_string: str,
+        metric_type_int: int
+    ) -> "faiss.Index":
         """
         Create a FAISS index for the given descriptor dimensionality,
         factory string and configured metric type.
 
         :param d: Integer indexed vector dimensionality.
-        :type d: int
-
         :param factory_string: Factory string to drive index generation.
-        :type factory_string: str
-
         :param int metric_type_int: FAISS metric constant to
 
         :return: Constructed index.
-        :rtype: faiss.Index | faiss.GpuIndex
         """
         LOG.debug(f"Creating index by factory: '{factory_string}'")
         index = faiss.index_factory(d, factory_string, metric_type_int)
         return self._convert_index(index)
 
-    def _has_model_data(self):
+    def _has_model_data(self) -> bool:
         """
         Check if configured model files are configured and not empty.
         """
         with self._model_lock:
-            return (self._index_element and
-                    self._index_param_element and
-                    not self._index_element.is_empty() and
-                    not self._index_param_element.is_empty())
+            return bool(self._index_element and
+                        self._index_param_element and
+                        not self._index_element.is_empty() and
+                        not self._index_param_element.is_empty())
 
-    def _load_faiss_model(self):
+    def _load_faiss_model(self) -> None:
         """
         Load the FAISS model from the configured DataElement
         """
         with self._model_lock:
-            if self._has_model_data():
+            if (
+                self._index_element and self._index_param_element and
+                not self._index_element.is_empty() and
+                not self._index_param_element.is_empty()
+            ):
                 # Load the binary index
                 tmp_fp = self._index_element.write_temp()
                 self._faiss_index = self._convert_index(
@@ -409,8 +403,9 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
                 # Check that descriptor-set and kvstore instances match up in
                 # size.
                 if not (
-                        len(self._descriptor_set) == len(self._uid2idx_kvs) ==
-                        len(self._idx2uid_kvs) == self._faiss_index.ntotal):
+                    len(self._descriptor_set) == len(self._uid2idx_kvs) ==
+                    len(self._idx2uid_kvs) == self._faiss_index.ntotal
+                ):
                     LOG.warning(
                         "Not all of our storage elements agree on size: "
                         "len(dset, uid2idx, idx2uid, faiss_idx) = "
@@ -420,17 +415,17 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
                         f" {self._faiss_index.ntotal})"
                     )
 
-    def _save_faiss_model(self):
+    def _save_faiss_model(self) -> None:
         """
         Save the index and parameters to the configured DataElements.
         """
         with self._model_lock:
             # Only write to cache elements if they are both writable.
-            writable = (self._index_element and
-                        self._index_element.writable() and
-                        self._index_param_element and
-                        self._index_param_element.writable())
-            if writable:
+            if (
+                self._index_element and self._index_param_element and
+                self._index_element.writable() and
+                self._index_param_element.writable()
+            ):
                 LOG.debug(f"Storing index: {self._index_element}")
                 # FAISS wants to write to a file, so make a temp file, then
                 # read it in, putting bytes into element.
@@ -466,7 +461,7 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
                     json.dumps(params).encode("utf-8")
                 )
 
-    def _build_index(self, descriptors):
+    def _build_index(self, descriptors: Iterable[DescriptorElement]) -> None:
         """
         Internal method to be implemented by sub-classes to build the index
         with the given descriptor data elements.
@@ -477,8 +472,6 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
 
         :param descriptors: Iterable of descriptor elements to build index
             over.
-        :type descriptors:
-            collections.abc.Iterable[smqtk.representation.DescriptorElement]
 
         """
         if self.read_only:
@@ -541,7 +534,7 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
 
             self._save_faiss_model()
 
-    def _update_index(self, descriptors):
+    def _update_index(self, descriptors: Iterable[DescriptorElement]) -> None:
         """
         Internal method to be implemented by sub-classes to additively update
         the current index with the one or more descriptor elements given.
@@ -554,8 +547,6 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
 
         :param descriptors: Iterable of descriptor elements to add to this
             index.
-        :type descriptors:
-            collections.abc.Iterable[smqtk.representation.DescriptorElement]
 
         """
         if self.read_only:
@@ -624,13 +615,12 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
 
             self._save_faiss_model()
 
-    def _remove_from_index(self, uids):
+    def _remove_from_index(self, uids: Iterable[Hashable]) -> None:
         """
         Internal method to be implemented by sub-classes to partially remove
         descriptors from this index associated with the given UIDs.
 
         :param uids: Iterable of UIDs of descriptors to remove from this index.
-        :type uids: collections.abc.Iterable[collections.abc.Hashable]
 
         :raises KeyError: One or more UIDs provided do not match any stored
             descriptors.
@@ -662,18 +652,19 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
             self._idx2uid_kvs.remove_many(rm_idxs)
             self._save_faiss_model()
 
-    def _descriptors_to_matrix(self, descriptors):
+    def _descriptors_to_matrix(
+        self,
+        descriptors: List[DescriptorElement]
+    ) -> Tuple[np.ndarray, Sequence[Hashable]]:
         """
         Extract an (n,d) array with the descriptor vectors in each row,
         and a corresponding list of uuids from the list of descriptors.
 
         :param descriptors: List descriptor elements to add to this
             index.
-        :type descriptors: list[smqtk.representation.DescriptorElement]
 
         :return: An (n,d) array of descriptors (d-dim descriptors in n
             rows), and the corresponding list of descriptor uuids.
-        :rtype: (np.ndarray, list[collections.abc.Hashable])
         """
         new_uuids = [desc.uuid() for desc in descriptors]
         data = np.vstack(
@@ -683,10 +674,9 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
         LOG.info(f"# uuids: {len(new_uuids)}")
         return data, new_uuids
 
-    def count(self):
+    def count(self) -> int:
         """
         :return: Number of elements in this index.
-        :rtype: int
         """
         with self._model_lock:
             # If we don't have a searchable index we don't actually have
@@ -696,13 +686,7 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
             else:
                 return 0
 
-    def _idx_has_nprobe(self):
-        """
-        Determine if the current index supports setting the nprobe parameter
-        :return:
-        """
-
-    def _set_index_nprobe(self):
+    def _set_index_nprobe(self) -> bool:
         """
         Try to set the currently configured nprobe value to the current faiss
         index.
@@ -738,7 +722,11 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
                 # Otherwise re-raise
                 raise
 
-    def _nn(self, d, n=1):
+    def _nn(
+        self,
+        d: DescriptorElement,
+        n: int = 1
+    ) -> Tuple[Tuple[DescriptorElement, ...], Tuple[float, ...]]:
         """
         Internal method to be implemented by sub-classes to return the nearest
         `N` neighbors to the given descriptor element.
@@ -747,14 +735,10 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
         is a vector in ``d`` and our index is not empty.
 
         :param d: Descriptor element to compute the neighbors of.
-        :type d: smqtk.representation.DescriptorElement
-
         :param n: Number of nearest neighbors to find.
-        :type n: int
 
         :return: Tuple of nearest N DescriptorElement instances, and a tuple of
             the distance values to those neighbors.
-        :rtype: (tuple[smqtk.representation.DescriptorElement], tuple[float])
 
         """
         q = d.vector()[np.newaxis, :].astype(np.float32)

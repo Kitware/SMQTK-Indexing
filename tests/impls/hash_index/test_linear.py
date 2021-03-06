@@ -9,30 +9,30 @@ from smqtk_indexing.impls.hash_index.linear import LinearHashIndex
 
 class TestLinearHashIndex (unittest.TestCase):
 
-    def test_is_usable(self):
+    def test_is_usable(self) -> None:
         # Should always be true since this impl does no have special deps.
         self.assertTrue(LinearHashIndex.is_usable())
 
-    def test_default_config(self):
+    def test_default_config(self) -> None:
         c = LinearHashIndex.get_default_config()
         self.assertEqual(len(c), 1)
         self.assertIsNone(c['cache_element']['type'])
 
-    def test_from_config_no_cache(self):
+    def test_from_config_no_cache(self) -> None:
         # Default config is valid and specifies no cache.
         c = LinearHashIndex.get_default_config()
         i = LinearHashIndex.from_config(c)
         self.assertIsNone(i.cache_element)
         self.assertEqual(i.index, set())
 
-    def test_from_config_with_cache(self):
+    def test_from_config_with_cache(self) -> None:
         c = LinearHashIndex.get_default_config()
         c['cache_element']['type'] = 'smqtk_dataprovider.impls.data_element.memory.DataMemoryElement'
         i = LinearHashIndex.from_config(c)
         self.assertIsInstance(i.cache_element, DataMemoryElement)
         self.assertEqual(i.index, set())
 
-    def test_get_config(self):
+    def test_get_config(self) -> None:
         i = LinearHashIndex()
 
         # Without cache element
@@ -44,7 +44,7 @@ class TestLinearHashIndex (unittest.TestCase):
         expected_c['cache_element']['type'] = 'smqtk_dataprovider.impls.data_element.memory.DataMemoryElement'
         self.assertEqual(i.get_config(), expected_c)
 
-    def test_build_index_no_cache(self):
+    def test_build_index_no_cache(self) -> None:
         i = LinearHashIndex()
         # noinspection PyTypeChecker
         i.build_index([[0, 1, 0],
@@ -54,7 +54,7 @@ class TestLinearHashIndex (unittest.TestCase):
         self.assertEqual(i.index, {1, 2, 3, 4})
         self.assertIsNone(i.cache_element)
 
-    def test_build_index_with_cache(self):
+    def test_build_index_with_cache(self) -> None:
         cache_element = DataMemoryElement()
         i = LinearHashIndex(cache_element)
         # noinspection PyTypeChecker
@@ -65,21 +65,21 @@ class TestLinearHashIndex (unittest.TestCase):
         self.assertEqual(i.index, {1, 2, 3, 4})
         self.assertFalse(cache_element.is_empty())
 
-    def test_build_index_no_input(self):
+    def test_build_index_no_input(self) -> None:
         i = LinearHashIndex()
         self.assertRaises(
             ValueError,
             i.build_index, []
         )
 
-    def test_update_index_no_input(self):
+    def test_update_index_no_input(self) -> None:
         i = LinearHashIndex()
         self.assertRaises(
             ValueError,
             i.update_index, []
         )
 
-    def test_update_index_no_index(self):
+    def test_update_index_no_index(self) -> None:
         # Test calling update index with no existing index.  Should result the
         # same as calling build_index with no index.
         i = LinearHashIndex()
@@ -91,7 +91,7 @@ class TestLinearHashIndex (unittest.TestCase):
         self.assertEqual(i.index, {1, 2, 3, 4})
         self.assertIsNone(i.cache_element)
 
-    def test_update_index_add_hashes(self):
+    def test_update_index_add_hashes(self) -> None:
         i = LinearHashIndex()
         # Build index with some initial hashes
         # noinspection PyTypeChecker
@@ -104,7 +104,7 @@ class TestLinearHashIndex (unittest.TestCase):
                         [1, 1]])
         self.assertSetEqual(i.index, {0, 1, 2, 3})
 
-    def test_remove_from_index_single_not_in_index(self):
+    def test_remove_from_index_single_not_in_index(self) -> None:
         # Test attempting to remove single hash not in the index.
         i = LinearHashIndex()
         i.index = {0, 1, 2}
@@ -115,7 +115,7 @@ class TestLinearHashIndex (unittest.TestCase):
         )
         self.assertSetEqual(i.index, {0, 1, 2})
 
-    def test_remove_from_index_one_of_many_not_in_index(self):
+    def test_remove_from_index_one_of_many_not_in_index(self) -> None:
         # Test attempting to remove hashes where one of them is not in the
         # index.
         i = LinearHashIndex()
@@ -129,7 +129,7 @@ class TestLinearHashIndex (unittest.TestCase):
         # Check that the index has not been modified.
         self.assertSetEqual(i.index, {0, 1, 2})
 
-    def test_remove_from_index(self):
+    def test_remove_from_index(self) -> None:
         # Test that actual removal occurs.
         i = LinearHashIndex()
         i.index = {0, 1, 2}
@@ -138,7 +138,7 @@ class TestLinearHashIndex (unittest.TestCase):
                              [1, 0]])
         self.assertSetEqual(i.index, {1})
 
-    def test_nn(self):
+    def test_nn(self) -> None:
         i = LinearHashIndex()
         # noinspection PyTypeChecker
         i.build_index([[0, 1, 0],
@@ -154,7 +154,7 @@ class TestLinearHashIndex (unittest.TestCase):
         numpy.testing.assert_array_almost_equal(near_dists,
                                                 (1/3., 1/3., 2/3., 2/3.))
 
-    def test_save_cache_build_index(self):
+    def test_save_cache_build_index(self) -> None:
         cache_element = DataMemoryElement()
         self.assertTrue(cache_element.is_empty())
 
@@ -170,7 +170,7 @@ class TestLinearHashIndex (unittest.TestCase):
         actual_cache = set(numpy.load(BytesIO(cache_element.get_bytes())))
         self.assertSetEqual(expected_cache, actual_cache)
 
-    def test_save_cache_update_index(self):
+    def test_save_cache_update_index(self) -> None:
         cache_element = DataMemoryElement()
         self.assertTrue(cache_element.is_empty())
 
@@ -187,7 +187,7 @@ class TestLinearHashIndex (unittest.TestCase):
         actual_cache = set(numpy.load(BytesIO(cache_element.get_bytes())))
         self.assertSetEqual(expected_cache, actual_cache)
 
-    def test_save_cache_remove_from_index(self):
+    def test_save_cache_remove_from_index(self) -> None:
         # Test that the cache is updated appropriately on a removal.
         cache_element = DataMemoryElement()
         self.assertTrue(cache_element.is_empty())
@@ -213,7 +213,7 @@ class TestLinearHashIndex (unittest.TestCase):
             {2, 6}
         )
 
-    def test_save_cache_readonly_build_index(self):
+    def test_save_cache_readonly_build_index(self) -> None:
         ro_cache = DataMemoryElement(readonly=True)
         i = LinearHashIndex(ro_cache)
         self.assertRaisesRegex(
@@ -226,7 +226,7 @@ class TestLinearHashIndex (unittest.TestCase):
              [0, 0, 1]]
         )
 
-    def test_save_cache_readonly_update_index(self):
+    def test_save_cache_readonly_update_index(self) -> None:
         ro_cache = DataMemoryElement(readonly=True)
         i = LinearHashIndex(ro_cache)
         self.assertRaisesRegex(
@@ -239,7 +239,7 @@ class TestLinearHashIndex (unittest.TestCase):
              [0, 0, 1]]
         )
 
-    def test_load_cache(self):
+    def test_load_cache(self) -> None:
         cache_element = DataMemoryElement()
         i1 = LinearHashIndex(cache_element)
         # noinspection PyTypeChecker

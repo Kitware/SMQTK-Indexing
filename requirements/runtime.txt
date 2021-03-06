@@ -6,4 +6,5 @@ smqtk_core == 0.15.0
 smqtk_dataprovider
 smqtk_descriptors
 
+dataclasses == 0.8; python_version < "3.7"
 numpy == 1.19.5

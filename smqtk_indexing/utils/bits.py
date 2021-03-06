@@ -1,7 +1,7 @@
 import numpy
 
 
-def bit_vector_to_int_large(v):
+def bit_vector_to_int_large(v: numpy.ndarray) -> int:
     """
     Transform a numpy vector representing a sequence of binary bits [0 | >0]
     into an integer representation.
@@ -10,10 +10,8 @@ def bit_vector_to_int_large(v):
     (>64bit).
 
     :param v: 1D Vector of bits
-    :type v: numpy.ndarray
 
     :return: Integer equivalent
-    :rtype: int
 
     """
     c = 0
@@ -22,7 +20,7 @@ def bit_vector_to_int_large(v):
     return c
 
 
-def int_to_bit_vector_large(integer, bits=0):
+def int_to_bit_vector_large(integer: int, bits: int = 0) -> numpy.ndarray:
     """
     Transform integer into a bit vector, optionally of a specific length.
 
@@ -33,14 +31,10 @@ def int_to_bit_vector_large(integer, bits=0):
         to represent the given ``integer`` value.
 
     :param integer: integer to convert
-    :type integer: int
-
     :param bits: Optional fixed number of bits that should be represented by the
         vector.
-    :type bits: Optional specification of the size of returned vector.
 
     :return: Bit vector as numpy array (big endian).
-    :rtype: numpy.ndarray[bool]
 
     """
     # Can't use math version because floating-point precision runs out after
@@ -49,13 +43,14 @@ def int_to_bit_vector_large(integer, bits=0):
     size = len(bin(integer)) - 2
 
     if bits and (bits - size) < 0:
-        raise ValueError("%d bits too small to represent integer value %d."
-                         % (bits, integer))
+        raise ValueError(
+            "%d bits too small to represent integer value %d." % (bits, integer)
+        )
 
     # Converting integer to array
     v = numpy.zeros(bits or size, numpy.bool_)
     for i in range(0, size):
-        v[-(i+1)] = integer & 1
+        v[-(i + 1)] = integer & 1
         integer >>= 1
 
     return v

@@ -15,12 +15,12 @@ from smqtk_indexing.utils.bits import int_to_bit_vector_large
 )
 class TestBallTreeHashIndex (unittest.TestCase):
 
-    def test_is_usable(self):
+    def test_is_usable(self) -> None:
         # Should always be true because major dependency (sklearn) is a package
         # requirement.
         self.assertTrue(SkLearnBallTreeHashIndex.is_usable())
 
-    def test_default_configuration(self):
+    def test_default_configuration(self) -> None:
         c = SkLearnBallTreeHashIndex.get_default_config()
         self.assertEqual(len(c), 3)
         self.assertIsInstance(c['cache_element'], dict)
@@ -28,7 +28,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
         self.assertEqual(c['leaf_size'], 40)
         self.assertIsNone(c['random_seed'])
 
-    def test_init_without_cache(self):
+    def test_init_without_cache(self) -> None:
         i = SkLearnBallTreeHashIndex(cache_element=None, leaf_size=52,
                                      random_seed=42)
         self.assertIsNone(i.cache_element)
@@ -36,7 +36,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
         self.assertEqual(i.random_seed, 42)
         self.assertIsNone(i.bt)
 
-    def test_init_with_empty_cache(self):
+    def test_init_with_empty_cache(self) -> None:
         empty_cache = DataMemoryElement()
         i = SkLearnBallTreeHashIndex(cache_element=empty_cache,
                                      leaf_size=52,
@@ -46,7 +46,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
         self.assertEqual(i.random_seed, 42)
         self.assertIsNone(i.bt)
 
-    def test_get_config(self):
+    def test_get_config(self) -> None:
         bt = SkLearnBallTreeHashIndex()
         bt_c = bt.get_config()
 
@@ -58,7 +58,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
         self.assertIsInstance(bt_c['cache_element'], dict)
         self.assertIsNone(bt_c['cache_element']['type'])
 
-    def test_init_consistency(self):
+    def test_init_consistency(self) -> None:
         # Test that constructing an instance with a configuration yields the
         # same config via ``get_config``.
 
@@ -75,18 +75,21 @@ class TestBallTreeHashIndex (unittest.TestCase):
             c
         )
 
-    def test_build_index_no_input(self):
+    def test_build_index_no_input(self) -> None:
         bt = SkLearnBallTreeHashIndex(random_seed=0)
         self.assertRaises(
             ValueError,
             bt.build_index, []
         )
 
-    def test_build_index(self):
+    def test_build_index(self) -> None:
         bt = SkLearnBallTreeHashIndex(random_seed=0)
         # Make 1000 random bit vectors of length 256
         m = np.random.randint(0, 2, 1000 * 256).reshape(1000, 256)
         bt.build_index(m)
+        assert bt.bt is not None, (
+            "Internal ball-tree structure should be constructed at this point."
+        )
 
         # deterministically sort index of built and source data to determine
         # that an index was built.
@@ -96,19 +99,22 @@ class TestBallTreeHashIndex (unittest.TestCase):
             sorted(m.tolist())
         )
 
-    def test_update_index_no_input(self):
+    def test_update_index_no_input(self) -> None:
         bt = SkLearnBallTreeHashIndex(random_seed=0)
         self.assertRaises(
             ValueError,
             bt.update_index, []
         )
 
-    def test_update_index_new_index(self):
+    def test_update_index_new_index(self) -> None:
         # Virtually the same as `test_build_index` but using update_index.
         bt = SkLearnBallTreeHashIndex(random_seed=0)
         # Make 1000 random bit vectors of length 256
         m = np.random.randint(0, 2, 1000 * 256).reshape(1000, 256).astype(bool)
         bt.update_index(m)
+        assert bt.bt is not None, (
+            "Internal ball-tree structure should be constructed at this point."
+        )
 
         # deterministically sort index of built and source data to determine
         # that an index was built.
@@ -118,7 +124,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
             sorted(m.tolist())
         )
 
-    def test_update_index_additive(self):
+    def test_update_index_additive(self) -> None:
         # Test updating an existing index, i.e. rebuilding using the union of
         # previous and new data.
         bt = SkLearnBallTreeHashIndex(random_seed=0)
@@ -129,6 +135,9 @@ class TestBallTreeHashIndex (unittest.TestCase):
 
         # Build initial index
         bt.build_index(m1)
+        assert bt.bt is not None, (
+            "Internal ball-tree structure should be constructed at this point."
+        )
         # Current model should only contain m1's data.
         np.testing.assert_array_almost_equal(
             sorted(np.array(bt.bt.data).tolist()),
@@ -143,7 +152,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
             sorted(np.concatenate([m1, m2], 0).tolist())
         )
 
-    def test_remove_from_index_no_index(self):
+    def test_remove_from_index_no_index(self) -> None:
         # A key error should be raised if there is no ball-tree index yet.
         bt = SkLearnBallTreeHashIndex(random_seed=0)
         rm_hash = np.random.randint(0, 2, 256)
@@ -154,12 +163,15 @@ class TestBallTreeHashIndex (unittest.TestCase):
             [rm_hash]
         )
 
-    def test_remove_from_index_invalid_key_single(self):
+    def test_remove_from_index_invalid_key_single(self) -> None:
         bt = SkLearnBallTreeHashIndex(random_seed=0)
         index = np.ndarray((1000, 256), bool)
         for i in range(1000):
             index[i] = int_to_bit_vector_large(i, 256)
         bt.build_index(index)
+        assert bt.bt is not None, (
+            "Internal ball-tree structure should be constructed at this point."
+        )
         # Copy post-build index for checking no removal occurred
         bt_data = np.copy(bt.bt.data)
 
@@ -174,7 +186,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
             np.asarray(bt.bt.data)
         )
 
-    def test_remove_from_index_invalid_key_multiple(self):
+    def test_remove_from_index_invalid_key_multiple(self) -> None:
         # Test that mixed valid and invalid keys raises KeyError and does not
         # modify the index.
         bt = SkLearnBallTreeHashIndex(random_seed=0)
@@ -182,6 +194,9 @@ class TestBallTreeHashIndex (unittest.TestCase):
         for i in range(1000):
             index[i] = int_to_bit_vector_large(i, 256)
         bt.build_index(index)
+        assert bt.bt is not None, (
+            "Internal ball-tree structure should be constructed at this point."
+        )
         # Copy post-build index for checking no removal occurred
         bt_data = np.copy(bt.bt.data)
 
@@ -197,13 +212,16 @@ class TestBallTreeHashIndex (unittest.TestCase):
             np.asarray(bt.bt.data)
         )
 
-    def test_remove_from_index(self):
+    def test_remove_from_index(self) -> None:
         # Test that we actually remove from the index.
         bt = SkLearnBallTreeHashIndex(random_seed=0)
         index = np.ndarray((1000, 256), bool)
         for i in range(1000):
             index[i] = int_to_bit_vector_large(i, 256)
         bt.build_index(index)
+        assert bt.bt is not None, (
+            "Internal ball-tree structure should be constructed at this point."
+        )
         # BallTree data should now contain 1000 entries
         self.assertEqual(bt.bt.data.shape, (1000, 256))
 
@@ -221,7 +239,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
         self.assertNotIn(tuple(int_to_bit_vector_large(998, 256)),
                          new_data_set)
 
-    def test_remove_from_index_last_element(self):
+    def test_remove_from_index_last_element(self) -> None:
         """
         Test removing the final the only element / final elements from the
         index.
@@ -259,7 +277,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
         self.assertEqual(bt.count(), 0)
         self.assertIsNone(bt.bt)
 
-    def test_remove_from_index_last_element_with_cache(self):
+    def test_remove_from_index_last_element_with_cache(self) -> None:
         """
         Test removing final element also clears the cache element.
         """
@@ -276,11 +294,11 @@ class TestBallTreeHashIndex (unittest.TestCase):
         self.assertEqual(bt.count(), 0)
         self.assertTrue(c.is_empty())
 
-    def test_count_empty(self):
+    def test_count_empty(self) -> None:
         bt = SkLearnBallTreeHashIndex()
         self.assertEqual(bt.count(), 0)
 
-    def test_count_nonempty(self):
+    def test_count_nonempty(self) -> None:
         bt = SkLearnBallTreeHashIndex()
         # Make 1000 random bit vectors of length 256
         m = np.random.randint(0, 2, 234 * 256).reshape(234, 256)
@@ -288,7 +306,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
 
         self.assertEqual(bt.count(), 234)
 
-    def test_nn_no_index(self):
+    def test_nn_no_index(self) -> None:
         i = SkLearnBallTreeHashIndex()
 
         self.assertRaisesRegex(
@@ -298,7 +316,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
         )
 
     @mock.patch('smqtk_indexing.impls.hash_index.sklearn_balltree.np.savez')
-    def test_save_model_no_cache(self, m_savez):
+    def test_save_model_no_cache(self, m_savez: mock.MagicMock) -> None:
         bt = SkLearnBallTreeHashIndex()
         m = np.random.randint(0, 2, 1000 * 256).reshape(1000, 256)
         bt._build_bt_internal(m)
@@ -306,7 +324,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
         # because no cache element set.
         self.assertFalse(m_savez.called)
 
-    def test_save_model_with_readonly_cache(self):
+    def test_save_model_with_readonly_cache(self) -> None:
         cache_element = DataMemoryElement(readonly=True)
         bt = SkLearnBallTreeHashIndex(cache_element)
         m = np.random.randint(0, 2, 1000 * 256).reshape(1000, 256)
@@ -316,7 +334,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
         )
 
     @mock.patch('smqtk_indexing.impls.hash_index.sklearn_balltree.np.savez')
-    def test_save_model_with_cache(self, m_savez):
+    def test_save_model_with_cache(self, m_savez: mock.MagicMock) -> None:
         cache_element = DataMemoryElement()
         bt = SkLearnBallTreeHashIndex(cache_element, random_seed=0)
         m = np.random.randint(0, 2, 1000 * 256).reshape(1000, 256)
@@ -324,7 +342,7 @@ class TestBallTreeHashIndex (unittest.TestCase):
         self.assertTrue(m_savez.called)
         self.assertEqual(m_savez.call_count, 1)
 
-    def test_load_model(self):
+    def test_load_model(self) -> None:
         # Create two index instances, building model with one, and loading
         # the other with the cache of the first instance. Each should have
         # distinct model instances, but should otherwise have equal model

@@ -1,5 +1,6 @@
 import threading
 import time
+from typing import Callable
 
 
 class ProgressReporter:
@@ -13,18 +14,19 @@ class ProgressReporter:
     TODO: Add parameter for an optionally known total number of increments.
     """
 
-    def __init__(self, log_func, interval, what_per_second="Loops"):
+    def __init__(
+        self,
+        log_func: Callable[[str], None],
+        interval: float,
+        what_per_second: str = "Loops"
+    ):
         """
         Initialize this reporter.
 
         :param log_func: Logging function to use.
-        :type log_func: (str, *args, **kwds) -> None
-
         :param interval: Time interval to perform reporting in seconds.  If no
             reporting during incrementation should occur, infinity should be
             passed.
-        :type interval: float
-
         :param str what_per_second:
             String label about what is happening or being iterated over per
             second. The provided string should make sense when followed by
@@ -52,7 +54,7 @@ class ProgressReporter:
 
         self.started = False
 
-    def start(self):
+    def start(self) -> "ProgressReporter":
         """ Start the timing state of this reporter.
 
         Repeated calls to this method resets the state of the reporting for
@@ -71,7 +73,7 @@ class ProgressReporter:
             self.t_delta = 0.0
         return self
 
-    def increment_report(self):
+    def increment_report(self) -> None:
         """
         Increment counter and time since last report, reporting if delta exceeds
         the set reporting interval period.
@@ -89,7 +91,7 @@ class ProgressReporter:
             self.t_last = self.t
             self.c_last = self.c
 
-    def increment_report_threadsafe(self):
+    def increment_report_threadsafe(self) -> None:
         """
         The same as ``increment_report`` but additionally acquires a lock on
         resources first for thread-safety.
@@ -100,7 +102,7 @@ class ProgressReporter:
         with self.lock:
             self.increment_report()
 
-    def report(self):
+    def report(self) -> None:
         """
         Report the current state.
 
@@ -118,7 +120,7 @@ class ProgressReporter:
                              self.c_delta,
                              self.c))
 
-    def report_threadsafe(self):
+    def report_threadsafe(self) -> None:
         """
         The same as ``report`` but additionally acquires a lock on
         resources first for thread-safety.
