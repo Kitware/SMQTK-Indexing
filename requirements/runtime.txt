@@ -2,8 +2,8 @@
 --index-url https://pypi.python.org/simple/
 
 smqtk_core == 0.15.0
+smqtk_dataprovider == 0.15.0
 # TODO: Version pin this when there is a PYPI release.
-smqtk_dataprovider
 smqtk_descriptors
 
 dataclasses == 0.8; python_version < "3.7"
