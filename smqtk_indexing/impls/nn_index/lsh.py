@@ -8,8 +8,9 @@ import itertools
 import logging
 import multiprocessing
 from typing import (
-    Any, Callable, Deque, Dict, Hashable, Iterable, List, Optional, Set, Tuple,
-    Type, TypeVar
+    cast,
+    Any, Callable, Deque, Dict, Hashable, Iterable, Iterator, List, Optional,
+    Set, Tuple, Type, TypeVar
 )
 
 import numpy
@@ -310,9 +311,8 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
             prog_reporter = ProgressReporter(LOG.debug, 1.0).start()
             # We just cleared the previous store, so aggregate new kv-mapping
             # in ``kvstore_update`` for single update after loop.
-            kvstore_update: Dict[
-                int, Set[Hashable]
-            ] = collections.defaultdict(set)
+            # NOTE: Mapping type apparently not yet covariant in the key type.
+            kvstore_update: Dict[Hashable, Set[Hashable]] = collections.defaultdict(set)
             for d in self.descriptor_set:
                 h_vec = self.lsh_functor.get_hash(d.vector())
                 hash_vectors.append(h_vec)
@@ -359,7 +359,8 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
             # for updating hash_index
             hash_vectors: Deque[numpy.ndarray] = collections.deque()
             # for updating kv-store after collecting new hash codes
-            kvstore_update = {}
+            # NOTE: Mapping type apparently not yet covariant in the key type.
+            kvstore_update: Dict[Hashable, Set[Hashable]] = {}
             for d in d_for_hashing:
                 h_vec = self.lsh_functor.get_hash(d.vector())
                 hash_vectors.append(h_vec)
@@ -419,7 +420,8 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
             # no longer maps anything, remove that key from the KVS.
             hashes_for_removal: Deque[numpy.ndarray] = collections.deque()
             # store key-value pairs to update after loop in batch call
-            kvs_update = {}
+            # NOTE: Mapping type apparently not yet covariant in the key type.
+            kvs_update: Dict[Hashable, Set[Hashable]] = {}
             # store keys to remove after loop in batch-call
             kvs_remove = set()
             for uid, h_int, h_vec in zip(uids, h_ints, h_vectors):
@@ -481,7 +483,7 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
                 hi = LinearHashIndex()
                 # not calling ``build_index`` because we already have the int
                 # hashes.
-                hi.index = set(self.hash2uuids_kvstore.keys())
+                hi.index = set(cast(Iterator[int], self.hash2uuids_kvstore.keys()))
             near_hashes, _ = hi.nn(d_h, n)
 
             LOG.debug("getting UUIDs of descriptors for nearby hashes")
