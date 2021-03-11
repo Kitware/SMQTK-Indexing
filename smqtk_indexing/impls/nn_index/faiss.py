@@ -6,8 +6,8 @@ import numpy as np
 import os
 import tempfile
 from typing import (
-    Any, Dict, Iterable, Hashable, List, Optional, Sequence, Tuple, Type,
-    TypeVar, Union
+    cast, Any, Dict, Iterable, Iterator, Hashable, List, Optional, Sequence,
+    Tuple, Type, TypeVar, Union
 )
 import warnings
 
@@ -514,6 +514,8 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
             self._descriptor_set.add_many_descriptors(desc_list)
             assert len(self._descriptor_set) == n, \
                 "New descriptor set size doesn't match data size"
+            # Convert numpy.int64 type values into python integer values.
+            # This is for compatibility with storing in some KVS impls.
             idx_ids = idx_ids.astype(object)
 
             self._uid2idx_kvs.clear()
@@ -599,6 +601,8 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
             assert len(self._descriptor_set) == old_ntotal + n, \
                 "New descriptor set size doesn't match old + data size"
 
+            # Convert numpy.int64 type values into python integer values.
+            # This is for compatibility with storing in some KVS impls.
             new_ids = new_ids.astype(object)
 
             self._uid2idx_kvs.add_many(
@@ -752,19 +756,24 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
             # Attempt to set n-probe of an IVF index
             self._set_index_nprobe()
 
-            # noinspection PyArgumentList
+            s_dists: np.ndarray
+            s_ids: np.ndarray
             s_dists, s_ids = self._faiss_index.search(
                 q, k=min(n, self._faiss_index.ntotal)
             )
             s_dists, s_ids = np.sqrt(s_dists[0, :]), s_ids[0, :]
+            # Convert numpy.int64 type values into python integer values.
+            # This is for compatibility when comparing values in some KVS
+            # impls (postgres...).
             s_ids = s_ids.astype(object)
             # s_id (the FAISS index indices) can equal -1 if fewer than the
             # requested number of nearest neighbors is returned. In this case,
             # eliminate the -1 entries
             LOG.debug("Getting descriptor UIDs from idx2uid mapping.")
-            uuids = list(self._idx2uid_kvs.get_many(
+            uuids = list(self._idx2uid_kvs.get_many(cast(
+                Iterator[Hashable],
                 filter(lambda s_id_: s_id_ >= 0, s_ids)
-            ))
+            )))
             if len(uuids) < n:
                 warnings.warn(f"Less than n={n} neighbors were retrieved from "
                               "the FAISS index instance. Maybe increase "

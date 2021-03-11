@@ -5,6 +5,11 @@ SMQTK Pending Release Notes
 Updates / New Features
 ----------------------
 
+Misc.
+
+* Updated to use now publicly available ``smqtk-dataprovider`` package from
+  PYPI.
+
 
 Fixes
 -----
