@@ -3,8 +3,7 @@
 
 smqtk_core == 0.15.0
 smqtk_dataprovider == 0.15.0
-# TODO: Version pin this when there is a PYPI release.
-smqtk_descriptors
+smqtk_descriptors == 0.15.0
 
 dataclasses == 0.8; python_version < "3.7"
 numpy == 1.19.5

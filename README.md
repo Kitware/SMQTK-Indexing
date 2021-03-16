@@ -1,4 +1,4 @@
-# SMQTK  -Indexing
+# SMQTK - Indexing
 
 ## Intent
 This package provides interfaces and implementations around the

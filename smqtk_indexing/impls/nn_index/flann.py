@@ -188,6 +188,15 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
                     not self._descr_cache_elem.is_empty())
 
     def _load_flann_model(self) -> None:
+        """
+        Load an existing FLANN model from the current cache references.
+
+        This sets the `_pid` attribute because the loaded model is only valid
+        for the current process (C-library backed resources, not python).
+
+        :raises ValueError: One or more descriptor elements in the cache does
+            not have a retrievable vector.
+        """
         if (
             bool(self._descr_cache) and
             self._descr_cache_elem is not None and
@@ -215,8 +224,16 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
             and not self._index_elem.is_empty()
         ):
             # make numpy matrix of descriptor vectors for FLANN
-            pts_array = [d.vector() for d in self._descr_cache]
-            pts_array = numpy.array(pts_array, dtype=pts_array[0].dtype)
+            d_vec_list = [d.vector() for d in self._descr_cache]
+            if None in d_vec_list:
+                raise ValueError(
+                    "One or more descriptor elements do not have retrievable "
+                    "vector data (returned None)."
+                )
+            pts_array = numpy.array(
+                d_vec_list,
+                dtype=cast(numpy.ndarray, d_vec_list[0]).dtype
+            )
             pyflann.set_distance_type(self._distance_method)
             self._flann = pyflann.FLANN()
             tmp_fp = self._index_elem.write_temp()

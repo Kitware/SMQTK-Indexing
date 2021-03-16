@@ -745,7 +745,13 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
             the distance values to those neighbors.
 
         """
-        q = d.vector()[np.newaxis, :].astype(np.float32)
+        # Parent template method already assures there is a vector stored in
+        # the input.
+        d_vector = d.vector()
+        assert d_vector is not None
+        # Reshape into a 1xD vector with float32 type, which is required for
+        # use with FAISS search.
+        q = d_vector[np.newaxis, :].astype(np.float32)
         LOG.debug("Received query for %d nearest neighbors", n)
 
         with self._model_lock:
