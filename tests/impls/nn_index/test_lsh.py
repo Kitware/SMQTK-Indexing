@@ -790,7 +790,9 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         # test query very near a build vector
         td_q = td[0]
         q = DescriptorMemoryElement('query', i)
-        v = td_q.vector().copy()
+        td_q_v = td_q.vector()
+        assert td_q_v is not None
+        v = td_q_v.copy()
         v_min = max(v.min(), 0.1)
         v[0] += v_min
         v[dim-1] -= v_min

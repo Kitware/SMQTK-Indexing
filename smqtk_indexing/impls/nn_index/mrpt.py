@@ -78,25 +78,6 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
 
     @classmethod
     def get_default_config(cls) -> Dict[str, Any]:
-        """
-        Generate and return a default configuration dictionary for this class.
-        This will be primarily used for generating what the configuration
-        dictionary would look like for this class without instantiating it.
-
-        By default, we observe what this class's constructor takes as
-        arguments, turning those argument names into configuration dictionary
-        keys. If any of those arguments have defaults, we will add those
-        values into the configuration dictionary appropriately. The dictionary
-        returned should only contain JSON compliant value types.
-
-        It is not be guaranteed that the configuration dictionary returned
-        from this method is valid for construction of an instance of this
-        class.
-
-        :return: Default configuration dictionary for the class.
-        :rtype: dict
-
-        """
         default = super(MRPTNearestNeighborsIndex, cls).get_default_config()
 
         di_default = make_default_config(DescriptorSet.get_impls())
@@ -110,25 +91,6 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
         config_dict: Dict,
         merge_default: bool = True
     ) -> T:
-        """
-        Instantiate a new instance of this class given the configuration
-        JSON-compliant dictionary encapsulating initialization arguments.
-
-        This method should not be called via super unless and instance of the
-        class is desired.
-
-        :param config_dict: JSON compliant dictionary encapsulating
-            a configuration.
-        :type config_dict: dict
-
-        :param merge_default: Merge the given configuration on top of the
-            default provided by ``get_default_config``.
-        :type merge_default: bool
-
-        :return: Constructed instance from the provided config.
-        :rtype: MRPTNearestNeighborsIndex
-
-        """
         if merge_default:
             cfg = cls.get_default_config()
             merge_dict(cfg, config_dict)
@@ -208,8 +170,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
         # Set the list of trees to an empty list to have a sane value
         self._trees: List[TreeElement] = []
 
-        #: :type: None | int
-        self._rand_seed = None
+        self._rand_seed: Optional[int] = None
         if random_seed:
             self._rand_seed = int(random_seed)
 
@@ -246,6 +207,11 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
         """
         sample = next(self._descriptor_set.iterdescriptors())
         sample_v = sample.vector()
+        if sample_v is None:
+            raise RuntimeError(
+                "Sample descriptor element from the current set had no vector "
+                "content!"
+            )
         n = self.count()
         d = sample_v.size
         leaf_size = n / (1 << self._depth)
@@ -435,28 +401,10 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
                 self._trees = pickle.load(f)
 
     def count(self) -> int:
-        """
-        :return: Number of elements in this index.
-        :rtype: int
-        """
         # Descriptor-set should already handle concurrency.
         return len(self._descriptor_set)
 
     def _build_index(self, descriptors: Iterable[DescriptorElement]) -> None:
-        """
-        Internal method to be implemented by sub-classes to build the index with
-        the given descriptor data elements.
-
-        Subsequent calls to this method should rebuild the current index.  This
-        method shall not add to the existing index nor raise an exception to as
-        to protect the current index.
-
-        :param descriptors: Iterable of descriptor elements to build index
-            over.
-        :type descriptors:
-            collections.abc.Iterable[smqtk.representation.DescriptorElement]
-
-        """
         with self._model_lock:
             if self._read_only:
                 raise ReadOnlyError("Cannot modify container attributes due to "
@@ -478,22 +426,6 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             self._save_mrpt_model()
 
     def _update_index(self, descriptors: Iterable[DescriptorElement]) -> None:
-        """
-        Internal method to be implemented by sub-classes to additively update
-        the current index with the one or more descriptor elements given.
-
-        If no index exists yet, a new one should be created using the given
-        descriptors.
-
-        *NOTE:* This implementation fully rebuilds the index using the current
-        index contents merged with the provided new descriptor elements.
-
-        :param descriptors: Iterable of descriptor elements to add to this
-            index.
-        :type descriptors:
-            collections.abc.Iterable[smqtk.representation.DescriptorElement]
-
-        """
         with self._model_lock:
             if self._read_only:
                 raise ReadOnlyError("Cannot modify container attributes due "
@@ -502,17 +434,6 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             self.build_index(chain(self._descriptor_set, descriptors))
 
     def _remove_from_index(self, uids: Iterable[Hashable]) -> None:
-        """
-        Internal method to be implemented by sub-classes to partially remove
-        descriptors from this index associated with the given UIDs.
-
-        :param uids: Iterable of UIDs of descriptors to remove from this index.
-        :type uids: collections.abc.Iterable[collections.abc.Hashable]
-
-        :raises KeyError: One or more UIDs provided do not match any stored
-            descriptors.
-
-        """
         with self._model_lock:
             if self._read_only:
                 raise ReadOnlyError("Cannot modify container attributes due "
@@ -525,29 +446,15 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
         d: DescriptorElement,
         n: int = 1
     ) -> Tuple[Tuple[DescriptorElement, ...], Tuple[float, ...]]:
-        """
-        Internal method to be implemented by sub-classes to return the nearest
-        `N` neighbors to the given descriptor element.
+        # Parent template method already checks that `d` has a non-None vector
+        d_v = d.vector()
 
-        When this internal method is called, we have already checked that there
-        is a vector in ``d`` and our index is not empty.
-
-        :param d: Descriptor element to compute the neighbors of.
-        :type d: smqtk.representation.DescriptorElement
-
-        :param n: Number of nearest neighbors to find.
-        :type n: int
-
-        :return: Tuple of nearest N DescriptorElement instances, and a tuple of
-            the distance values to those neighbors.
-        :rtype: (tuple[smqtk.representation.DescriptorElement], tuple[float])
-
-        """
         def _query_single(tree: TreeElement) -> List[Hashable]:
             # Search a single tree for the leaf that matches the query
             # NB: random_basis has shape (levels, N)
             random_basis = tree.random_basis
-            proj_query = d.vector().dot(random_basis)
+            assert d_v is not None
+            proj_query = d_v.dot(random_basis)
             splits = tree.splits
             idx = 0
             for level in range(depth):
@@ -568,7 +475,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             LOG.debug(f"Exact query requested with {set_size} descriptors")
 
             # Assemble the array to query from the descriptors that match
-            d_v = d.vector()
+            assert d_v is not None
             pts_array = np.empty((set_size, d_v.size), dtype=d_v.dtype)
             descriptors = self._descriptor_set.get_many_descriptors(_uuids)
             for i, desc in enumerate(descriptors):
