@@ -1,0 +1,32 @@
+SMQTK v0.15.0 Release Notes
+===========================
+
+This is the initial release of ``smqtk-indexing``, spinning off from
+v0.14.0 of the monolithic `SMQTK`_ library.
+
+.. _smqtk: https://github.com/kitware/smqtk
+
+
+Updates / New Features
+----------------------
+
+CI
+
+* Add Github actions workflow for CI.
+
+Misc.
+
+* Updated to use now publicly available ``smqtk-dataprovider`` package from
+  PYPI.
+
+* Updated to use now publicly available ``smqtk-descriptors`` package from
+  PYPI.
+
+
+Fixes
+-----
+
+CI
+
+* Fix mypy typechecking issues due to the increased strenuousness of the mypy
+  options.
