@@ -64,7 +64,17 @@ pytest = "^6.2.2"
 pytest-cov = "^2.11.1"
 
 [tool.poetry.plugins."smqtk_plugins"]
-# TODO: Fill this in
+# HashIndex
+"smqtk_indexing.impls.hash_index.linear" = "smqtk_indexing.impls.hash_index.linear"
+"smqtk_indexing.impls.hash_index.sklearn_balltree" = "smqtk_indexing.impls.hash_index.sklearn_balltree"
+# LshFunctor
+"smqtk_indexing.impls.lsh_functor.itq" = "smqtk_indexing.impls.lsh_functor.itq"
+"smqtk_indexing.impls.lsh_functor.simple_rp" = "smqtk_indexing.impls.lsh_functor.simple_rp"
+# NearestNeighborIndex
+"smqtk_indexing.impls.nn_index.faiss" = "smqtk_indexing.impls.nn_index.faiss"
+"smqtk_indexing.impls.nn_index.flann" = "smqtk_indexing.impls.nn_index.flann"
+"smqtk_indexing.impls.nn_index.lsh" = "smqtk_indexing.impls.nn_index.lsh"
+"smqtk_indexing.impls.nn_index.mrpt" = "smqtk_indexing.impls.nn_index.mrpt"
 
 ###############################################################################
 [tool.pytest.ini_options]
