@@ -20,7 +20,7 @@ import smqtk_indexing
 
 # -- Project information -----------------------------------------------------
 
-project = 'SMQTK'
+project = 'SMQTK-Indexing'
 copyright = '2015, Kitware, Inc.'
 author = 'Kitware, Inc.'
 
