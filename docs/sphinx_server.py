@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """
 This module is designed to used with _livereload to 
 make it a little easier to write Sphinx documentation.
@@ -15,6 +14,8 @@ import os
 from livereload import Server, shell
 
 rebuild_cmd = shell('make html', cwd='.')
+rebuild_root = "_build/html"
+watch_source_dir = "../smqtk_indexing"
 
 watch_dirs = [
     '.',
@@ -22,7 +23,6 @@ watch_dirs = [
     'examples', 'examples/nnss_incremental_update',
     'quickstarts',
     'release_notes',
-    'webservices',
 ]
 
 watch_globs = [
@@ -36,7 +36,7 @@ for d in watch_dirs:
     for g in watch_globs:
         server.watch(os.path.join(d, g), rebuild_cmd)
 # Watch source python files.
-for dirpath, dirnames, filenames in os.walk('../python/smqtk'):
+for dirpath, dirnames, filenames in os.walk(watch_source_dir):
     server.watch(os.path.join(dirpath, '*.py'), rebuild_cmd)
 # Optionally change to host="0.0.0.0" to make available outside localhost.
-server.serve(root='_build/html')
+server.serve(root=rebuild_root)
