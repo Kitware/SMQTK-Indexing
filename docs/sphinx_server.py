@@ -19,9 +19,7 @@ watch_source_dir = "../smqtk_indexing"
 
 watch_dirs = [
     '.',
-    'architecture',
     'examples', 'examples/nnss_incremental_update',
-    'quickstarts',
     'release_notes',
 ]
 
