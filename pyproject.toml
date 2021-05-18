@@ -33,12 +33,11 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.6"
-setuptools = ">=53"
 dataclasses = {version = "^0.8", python = "<3.7"}
 numpy = "^1.19.5"
-smqtk-core = "^0.16.0"
-smqtk-dataprovider = "^0.15.0"
-smqtk-descriptors = "^0.15.0"
+smqtk-core = ">=0.18.0"
+smqtk-dataprovider = ">=0.16.0"
+smqtk-descriptors = ">=0.16.0"
 faiss-cpu = {version = "^1.7.0", optional = true}
 scikit-learn = {version = "^0.24.1", optional = true}
 
@@ -62,6 +61,9 @@ livereload = "^2.6.3"
 coverage = "^5.5"
 pytest = "^6.2.2"
 pytest-cov = "^2.11.1"
+# Development
+ipython = "^7.16.1"
+jedi = "^0.17.2"
 
 [tool.poetry.plugins."smqtk_plugins"]
 # HashIndex
@@ -82,6 +84,8 @@ addopts = [
     "-lv",                  # Show local in trace-backs.
     "--doctest-modules",    # Increased verbosity.
     "--tb=long",            # Trace-back print mode.
+    "--cov=smqtk_indexing", # Cover our package specifically
+    "--cov-report=term",    # Coverage report to terminal
 ]
 testpaths = [
     "tests",
