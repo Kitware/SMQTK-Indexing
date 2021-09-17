@@ -47,6 +47,8 @@ faiss = ["faiss-cpu"]
 sklearn = ["scikit-learn"]
 
 [tool.poetry.dev-dependencies]
+# Examples
+jupyter = "^1.0.0"
 # CI
 flake8 = "^3.9.0"
 flake8-mutable = "^1.2.0"
