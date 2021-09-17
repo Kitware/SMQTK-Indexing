@@ -155,7 +155,7 @@ class TestFAISSIndex (unittest.TestCase):
     def test_build_index_read_only(self) -> None:
         v = np.zeros(5, float)
         v[0] = 1.
-        d = DescriptorMemoryElement('unit', 0)
+        d = DescriptorMemoryElement(0)
         d.set_vector(v)
         test_descriptors = [d]
 
@@ -175,7 +175,7 @@ class TestFAISSIndex (unittest.TestCase):
     def test_update_index_new_index(self) -> None:
         n = 100
         dim = 8
-        d_set = [DescriptorMemoryElement('test', i) for i in range(n)]
+        d_set = [DescriptorMemoryElement(i) for i in range(n)]
         [d.set_vector(np.random.rand(dim)) for d in d_set]
 
         index = self._make_inst()
@@ -198,8 +198,8 @@ class TestFAISSIndex (unittest.TestCase):
         n1 = 100
         n2 = 10
         dim = 8
-        set1 = {DescriptorMemoryElement('test', i) for i in range(n1)}
-        set2 = {DescriptorMemoryElement('test', i)
+        set1 = {DescriptorMemoryElement(i) for i in range(n1)}
+        set2 = {DescriptorMemoryElement(i)
                 for i in range(n1, n1+n2)}
         [d.set_vector(np.random.rand(dim)) for d in (set1 | set2)]
 
@@ -229,8 +229,8 @@ class TestFAISSIndex (unittest.TestCase):
         n1 = 100
         n2 = 10
         dim = 8
-        set1 = {DescriptorMemoryElement('test', i) for i in range(n1)}
-        set2 = {DescriptorMemoryElement('test', i)
+        set1 = {DescriptorMemoryElement(i) for i in range(n1)}
+        set2 = {DescriptorMemoryElement(i)
                 for i in range(n1, n1+n2)}
         [d.set_vector(np.random.rand(dim)) for d in (set1 | set2)]
 
@@ -311,7 +311,7 @@ class TestFAISSIndex (unittest.TestCase):
         """
         n = 100
         dim = 8
-        dset = {DescriptorMemoryElement('test', i) for i in range(n)}
+        dset = {DescriptorMemoryElement(i) for i in range(n)}
         [d.set_vector(np.random.rand(dim)) for d in dset]
 
         index = self._make_inst()
@@ -334,7 +334,7 @@ class TestFAISSIndex (unittest.TestCase):
         """
         n = 100
         dim = 8
-        dset = {DescriptorMemoryElement('test', i) for i in range(n)}
+        dset = {DescriptorMemoryElement(i) for i in range(n)}
         [d.set_vector(np.random.rand(dim)) for d in dset]
 
         index = self._make_inst()
@@ -363,8 +363,8 @@ class TestFAISSIndex (unittest.TestCase):
         n1 = 100
         n2 = 10
         dim = 8
-        set1 = [DescriptorMemoryElement('test', i) for i in range(n1)]
-        set2 = [DescriptorMemoryElement('test', i)
+        set1 = [DescriptorMemoryElement(i) for i in range(n1)]
+        set2 = [DescriptorMemoryElement(i)
                 for i in range(n1, n1 + n2)]
         [d.set_vector(np.random.rand(dim)) for d in (set1 + set2)]
         uids_to_remove = [10, 98]
@@ -390,9 +390,9 @@ class TestFAISSIndex (unittest.TestCase):
         n = 10 ** 4
         dim = 256
 
-        d_set = [DescriptorMemoryElement('test', i) for i in range(n)]
+        d_set = [DescriptorMemoryElement(i) for i in range(n)]
         [d.set_vector(np.random.rand(dim)) for d in d_set]
-        q = DescriptorMemoryElement('q', -1)
+        q = DescriptorMemoryElement(-1)
         q.set_vector(np.zeros((dim,)))
 
         faiss_index = self._make_inst()
@@ -410,9 +410,9 @@ class TestFAISSIndex (unittest.TestCase):
         n = 10 ** 4
         dim = 256
 
-        d_set = [DescriptorMemoryElement('test', i) for i in range(n)]
+        d_set = [DescriptorMemoryElement(i) for i in range(n)]
         [d.set_vector(np.random.rand(dim)) for d in d_set]
-        q = DescriptorMemoryElement('q', -1)
+        q = DescriptorMemoryElement(-1)
         q.set_vector(np.zeros((dim,)))
 
         faiss_index.build_index(d_set)
@@ -429,9 +429,9 @@ class TestFAISSIndex (unittest.TestCase):
         n = 10 ** 4
         dim = 256
 
-        d_set = [DescriptorMemoryElement('test', i) for i in range(n)]
+        d_set = [DescriptorMemoryElement(i) for i in range(n)]
         [d.set_vector(np.random.rand(dim)) for d in d_set]
-        q = DescriptorMemoryElement('q', -1)
+        q = DescriptorMemoryElement(-1)
         q.set_vector(np.zeros((dim,)))
 
         faiss_index.build_index(d_set)
@@ -452,13 +452,13 @@ class TestFAISSIndex (unittest.TestCase):
             v = np.zeros(dim, float)
             v[i] = 1.
             test_descriptors.append(
-                DescriptorMemoryElement('unit', i).set_vector(v)
+                DescriptorMemoryElement(i).set_vector(v)
             )
         index.build_index(test_descriptors)
         # query descriptor -- zero vector
         # -> all modeled descriptors should be equally distant (unit
         # corners)
-        q = DescriptorMemoryElement('query', 0)
+        q = DescriptorMemoryElement(0)
         q.set_vector(np.zeros(dim, float))
         r, dists = index.nn(q, n=dim)
         self.assertEqual(len(dists), dim)
@@ -475,12 +475,12 @@ class TestFAISSIndex (unittest.TestCase):
         index = self._make_inst()
         vectors = np.eye(dim, dtype=np.float32)
         test_descriptors = [
-            DescriptorMemoryElement('unit', i).set_vector(vectors[i])
+            DescriptorMemoryElement(i).set_vector(vectors[i])
             for i in range(dim)
         ]
         index.build_index(test_descriptors)
         # query descriptor -- first point
-        q = DescriptorMemoryElement('query', 0)
+        q = DescriptorMemoryElement(0)
         q.set_vector(vectors[0])
         r, dists = index.nn(q)
         self.assertEqual(len(dists), 1)
@@ -494,7 +494,7 @@ class TestFAISSIndex (unittest.TestCase):
         # make vectors to return in a known euclidean distance order
         i = 100
         test_descriptors = [
-            DescriptorMemoryElement('ordered', j).set_vector(
+            DescriptorMemoryElement(j).set_vector(
                 np.array([j, j * 2], float)
             )
             for j in range(i)
@@ -505,7 +505,7 @@ class TestFAISSIndex (unittest.TestCase):
         # Since descriptors were built in increasing distance from (0,0),
         # returned descriptors for a query of [0,0] should be in index
         # order.
-        q = DescriptorMemoryElement('query', 99)
+        q = DescriptorMemoryElement(99)
         q.set_vector(np.array([0, 0], float))
         r, dists = index.nn(q, n=i)
 
@@ -521,7 +521,7 @@ class TestFAISSIndex (unittest.TestCase):
         # Create descriptor elements to build index with.
         np.random.seed(0)  # for "consistent" random results.
         descr_elems = [
-            DescriptorMemoryElement('test', i).set_vector(v)
+            DescriptorMemoryElement(i).set_vector(v)
             for i, v in enumerate(np.random.rand(512, 2048))
         ]
 
