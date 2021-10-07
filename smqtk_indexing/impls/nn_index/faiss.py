@@ -18,8 +18,10 @@ from smqtk_dataprovider import (
     DataElement,
     KeyValueStore,
 )
-from smqtk_descriptors import DescriptorElement, DescriptorSet
 from smqtk_dataprovider.exceptions import ReadOnlyError
+from smqtk_dataprovider.impls.key_value_store.memory import MemoryKeyValueStore
+from smqtk_descriptors import DescriptorElement, DescriptorSet
+from smqtk_descriptors.impls.descriptor_set.memory import MemoryDescriptorSet
 from smqtk_indexing import NearestNeighborsIndex
 from smqtk_indexing.utils import metrics
 
@@ -179,9 +181,9 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
 
     def __init__(
         self,
-        descriptor_set: DescriptorSet,
-        idx2uid_kvs: KeyValueStore,
-        uid2idx_kvs: KeyValueStore,
+        descriptor_set: DescriptorSet = None,
+        idx2uid_kvs: KeyValueStore = None,
+        uid2idx_kvs: KeyValueStore = None,
         index_element: Optional[DataElement] = None,
         index_param_element: Optional[DataElement] = None,
         read_only: bool = False,
@@ -196,6 +198,14 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
         Initialize FAISS index properties. Does not contain a queryable index
         until one is built via the ``build_index`` method, or loaded from
         existing model files.
+
+        By default, or when `None` is passed in for the descriptor and UID
+        storage parameters, we use in-memory implementations of the appropriate
+        structures.
+        Alternative implementations may be provided to alter this behavior.
+        When providing alternative storage representations, all three should
+        be overridden in a similar fashion such that data is not desynchronized
+        or lost between invocations.
 
         :param descriptor_set: Set in which indexed DescriptorElements will be
             stored.
@@ -247,9 +257,21 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
 
         m_l2c = metric_label_to_const()
 
-        self._descriptor_set = descriptor_set
-        self._idx2uid_kvs = idx2uid_kvs
-        self._uid2idx_kvs = uid2idx_kvs
+        self._descriptor_set = (
+            descriptor_set
+            if descriptor_set is not None
+            else MemoryDescriptorSet()
+        )
+        self._idx2uid_kvs = (
+            idx2uid_kvs
+            if idx2uid_kvs is not None
+            else MemoryKeyValueStore()
+        )
+        self._uid2idx_kvs = (
+            uid2idx_kvs
+            if uid2idx_kvs is not None
+            else MemoryKeyValueStore()
+        )
         self._index_element = index_element
         self._index_param_element = index_param_element
         self.read_only = read_only

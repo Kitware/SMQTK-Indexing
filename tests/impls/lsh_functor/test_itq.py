@@ -230,7 +230,7 @@ class TestItqFunctor (unittest.TestCase):
         # used).
         fit_descriptors = []
         for i in range(3):
-            d = DescriptorMemoryElement('test', i)
+            d = DescriptorMemoryElement(i)
             d.set_vector([-1+i, -1+i])
             fit_descriptors.append(d)
 
@@ -255,7 +255,7 @@ class TestItqFunctor (unittest.TestCase):
     def test_fit(self) -> None:
         fit_descriptors = []
         for i in range(5):
-            d = DescriptorMemoryElement('test', i)
+            d = DescriptorMemoryElement(i)
             d.set_vector([-2. + i, -2. + i])
             fit_descriptors.append(d)
 
@@ -272,7 +272,7 @@ class TestItqFunctor (unittest.TestCase):
     def test_fit_with_cache(self) -> None:
         fit_descriptors = []
         for i in range(5):
-            d = DescriptorMemoryElement('test', i)
+            d = DescriptorMemoryElement(i)
             d.set_vector([-2. + i, -2. + i])
             fit_descriptors.append(d)
 
@@ -304,7 +304,7 @@ class TestItqFunctor (unittest.TestCase):
     def test_get_hash(self) -> None:
         fit_descriptors = []
         for i in range(5):
-            d = DescriptorMemoryElement('test', i)
+            d = DescriptorMemoryElement(i)
             d.set_vector([-2. + i, -2. + i])
             fit_descriptors.append(d)
 

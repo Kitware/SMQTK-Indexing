@@ -57,7 +57,7 @@ class TestMRPTIndex (unittest.TestCase):
     def test_read_only(self) -> None:
         v = np.zeros(5, float)
         v[0] = 1.
-        d = DescriptorMemoryElement('unit', 0)
+        d = DescriptorMemoryElement(0)
         d.set_vector(v)
         test_descriptors = [d]
 
@@ -77,7 +77,7 @@ class TestMRPTIndex (unittest.TestCase):
     def test_update_index_new_index(self) -> None:
         n = 100
         dim = 8
-        d_set = [DescriptorMemoryElement('test', i) for i in range(n)]
+        d_set = [DescriptorMemoryElement(i) for i in range(n)]
         [d.set_vector(np.random.rand(dim)) for d in d_set]
 
         index = self._make_inst()
@@ -100,8 +100,8 @@ class TestMRPTIndex (unittest.TestCase):
         n1 = 100
         n2 = 10
         dim = 8
-        set1 = {DescriptorMemoryElement('test', i) for i in range(n1)}
-        set2 = {DescriptorMemoryElement('test', i) for i in range(n1, n1+n2)}
+        set1 = {DescriptorMemoryElement(i) for i in range(n1)}
+        set2 = {DescriptorMemoryElement(i) for i in range(n1, n1+n2)}
         [d.set_vector(np.random.rand(dim)) for d in set1.union(set1 | set2)]
 
         # Create and build initial index.
@@ -152,7 +152,7 @@ class TestMRPTIndex (unittest.TestCase):
         """
         n = 100
         dim = 32
-        dset = [DescriptorMemoryElement('test', i) for i in range(n)]
+        dset = [DescriptorMemoryElement(i) for i in range(n)]
         np.random.seed(self.RAND_SEED)
         [d.set_vector(np.random.rand(dim)) for d in dset]
 
@@ -189,9 +189,9 @@ class TestMRPTIndex (unittest.TestCase):
         depth = 5
         num_trees = 10
 
-        d_set = [DescriptorMemoryElement('test', i) for i in range(n)]
+        d_set = [DescriptorMemoryElement(i) for i in range(n)]
         [d.set_vector(np.random.rand(dim)) for d in d_set]
-        q = DescriptorMemoryElement('q', -1)
+        q = DescriptorMemoryElement(-1)
         q.set_vector(np.zeros((dim,)))
 
         di = MemoryDescriptorSet()
@@ -214,9 +214,9 @@ class TestMRPTIndex (unittest.TestCase):
         # 3k/L = 60
         num_trees = 60
 
-        d_set = [DescriptorMemoryElement('test', i) for i in range(n)]
+        d_set = [DescriptorMemoryElement(i) for i in range(n)]
         [d.set_vector(np.random.rand(dim)) for d in d_set]
-        q = DescriptorMemoryElement('q', -1)
+        q = DescriptorMemoryElement(-1)
         q.set_vector(np.zeros((dim,)))
 
         di = MemoryDescriptorSet()
@@ -237,13 +237,13 @@ class TestMRPTIndex (unittest.TestCase):
         # 3k/L = 60
         num_trees = 60
 
-        d_set = [DescriptorMemoryElement('test', i) for i in range(n)]
+        d_set = [DescriptorMemoryElement(i) for i in range(n)]
         # Put all descriptors on a line so that different trees get same
         # divisions.
         # noinspection PyTypeChecker
         [d.set_vector(np.full(dim, d.uuid(), dtype=np.float64))
          for d in d_set]
-        q = DescriptorMemoryElement('q', -1)
+        q = DescriptorMemoryElement(-1)
         q.set_vector(np.zeros((dim,)))
 
         di = MemoryDescriptorSet()
@@ -269,13 +269,13 @@ class TestMRPTIndex (unittest.TestCase):
             v = np.zeros(dim, float)
             v[i] = 1.
             test_descriptors.append(
-                DescriptorMemoryElement('unit', i).set_vector(v)
+                DescriptorMemoryElement(i).set_vector(v)
             )
         index.build_index(test_descriptors)
         # query descriptor -- zero vector
         # -> all modeled descriptors should be equally distant (unit
         # corners)
-        q = DescriptorMemoryElement('query', 0)
+        q = DescriptorMemoryElement(0)
         q.set_vector(np.zeros(dim, float))
         r, dists = index.nn(q, n=dim)
         self.assertEqual(len(dists), dim)
@@ -293,13 +293,13 @@ class TestMRPTIndex (unittest.TestCase):
         test_descriptors = []
         vectors = np.eye(dim, dtype=np.float32)
         for i in range(dim):
-            d = DescriptorMemoryElement('unit', i)
+            d = DescriptorMemoryElement(i)
             d.set_vector(vectors[i])
             test_descriptors.append(d)
         index.build_index(test_descriptors)
         for i in range(dim):
             # query descriptor -- first point
-            q = DescriptorMemoryElement('query', i)
+            q = DescriptorMemoryElement(i)
             q.set_vector(vectors[i])
             r, dists = index.nn(q)
             self.assertEqual(len(dists), 1)
@@ -313,7 +313,7 @@ class TestMRPTIndex (unittest.TestCase):
         # make vectors to return in a known euclidean distance order
         i = 100
         test_descriptors = [
-            DescriptorMemoryElement('ordered', j).set_vector(np.array([j, j*2], float))
+            DescriptorMemoryElement(j).set_vector(np.array([j, j*2], float))
             for j in range(i)
         ]
         random.shuffle(test_descriptors)
@@ -322,7 +322,7 @@ class TestMRPTIndex (unittest.TestCase):
         # Since descriptors were build in increasing distance from (0,0),
         # returned descriptors for a query of [0,0] should be in index
         # order.
-        q = DescriptorMemoryElement('query', 99)
+        q = DescriptorMemoryElement(99)
         q.set_vector(np.array([0, 0], float))
         r, dists = index.nn(q, n=i)
         # Because the data is one-dimensional, all of the cells will have

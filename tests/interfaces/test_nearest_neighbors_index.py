@@ -129,7 +129,7 @@ class TestNNIndexAbstract (unittest.TestCase):
         index = DummySI()
         # noinspection PyTypeHints
         index._build_index = mock.MagicMock()  # type: ignore
-        d = DescriptorMemoryElement('test', 0)
+        d = DescriptorMemoryElement(0)
         index.build_index([d])
         index._build_index.assert_called_once()
         # Check that the last call's first (only) argument was the same iterable
@@ -145,10 +145,10 @@ class TestNNIndexAbstract (unittest.TestCase):
         # noinspection PyTypeHints
         index._build_index = mock.MagicMock()  # type: ignore
         d_set = {
-            DescriptorMemoryElement('test', 0),
-            DescriptorMemoryElement('test', 1),
-            DescriptorMemoryElement('test', 2),
-            DescriptorMemoryElement('test', 3),
+            DescriptorMemoryElement(0),
+            DescriptorMemoryElement(1),
+            DescriptorMemoryElement(2),
+            DescriptorMemoryElement(3),
         }
         it = iter(d_set)
         index.build_index(it)
@@ -179,10 +179,10 @@ class TestNNIndexAbstract (unittest.TestCase):
 
         # Testing with dummy input data.
         d_set = {
-            DescriptorMemoryElement('test', 0),
-            DescriptorMemoryElement('test', 1),
-            DescriptorMemoryElement('test', 2),
-            DescriptorMemoryElement('test', 3),
+            DescriptorMemoryElement(0),
+            DescriptorMemoryElement(1),
+            DescriptorMemoryElement(2),
+            DescriptorMemoryElement(3),
         }
         index.update_index(d_set)
         index._update_index.assert_called_once()
@@ -197,10 +197,10 @@ class TestNNIndexAbstract (unittest.TestCase):
         # noinspection PyTypeHints
         index._update_index = mock.MagicMock()  # type: ignore
         d_set = {
-            DescriptorMemoryElement('test', 0),
-            DescriptorMemoryElement('test', 1),
-            DescriptorMemoryElement('test', 2),
-            DescriptorMemoryElement('test', 3),
+            DescriptorMemoryElement(0),
+            DescriptorMemoryElement(1),
+            DescriptorMemoryElement(2),
+            DescriptorMemoryElement(3),
         }
         it = iter(d_set)
         index.update_index(it)
@@ -262,7 +262,7 @@ class TestNNIndexAbstract (unittest.TestCase):
         # noinspection PyTypeHints
         index._nn = mock.MagicMock()  # type: ignore
 
-        q = DescriptorMemoryElement('test', 0)
+        q = DescriptorMemoryElement(0)
         self.assertRaises(
             ValueError,
             index.nn, q
@@ -278,7 +278,7 @@ class TestNNIndexAbstract (unittest.TestCase):
         # noinspection PyTypeHints
         index._nn = mock.MagicMock()  # type: ignore
 
-        q = DescriptorMemoryElement('q', 0)
+        q = DescriptorMemoryElement(0)
         q.set_vector(numpy.random.rand(4))
         self.assertRaises(
             ValueError,
@@ -293,13 +293,13 @@ class TestNNIndexAbstract (unittest.TestCase):
         index.count = mock.MagicMock()  # type: ignore
         index.count.return_value = 1
 
-        q = DescriptorMemoryElement('q', 0)
+        q = DescriptorMemoryElement(0)
         q.set_vector(numpy.random.rand(4))
         # Basically this shouldn't crash
         index.nn(q)
 
     def test_query_empty_index(self) -> None:
         index = DummySI()
-        q = DescriptorMemoryElement('q', 0)
+        q = DescriptorMemoryElement(0)
         q.set_vector(numpy.random.rand(4))
         self.assertRaises(ValueError, index.nn, q)

@@ -156,12 +156,12 @@ class TestLshIndex (unittest.TestCase):
         self.assertEqual(lsh.count(), 0)
 
         # Additions to the descriptor-set should not impact LSH index "size"
-        lsh.descriptor_set.add_descriptor(DescriptorMemoryElement('t', 0))
+        lsh.descriptor_set.add_descriptor(DescriptorMemoryElement(0))
         self.assertEqual(lsh.descriptor_set.count(), 1)
         self.assertEqual(lsh.hash2uuids_kvstore.count(), 0)
         self.assertEqual(lsh.count(), 0)
 
-        lsh.descriptor_set.add_descriptor(DescriptorMemoryElement('t', 1))
+        lsh.descriptor_set.add_descriptor(DescriptorMemoryElement(1))
         self.assertEqual(lsh.descriptor_set.count(), 2)
         self.assertEqual(lsh.hash2uuids_kvstore.count(), 0)
         self.assertEqual(lsh.count(), 0)
@@ -194,11 +194,11 @@ class TestLshIndex (unittest.TestCase):
                                         descr_set, hash_kvs)
 
         descriptors = [
-            DescriptorMemoryElement('t', 0),
-            DescriptorMemoryElement('t', 1),
-            DescriptorMemoryElement('t', 2),
-            DescriptorMemoryElement('t', 3),
-            DescriptorMemoryElement('t', 4),
+            DescriptorMemoryElement(0),
+            DescriptorMemoryElement(1),
+            DescriptorMemoryElement(2),
+            DescriptorMemoryElement(3),
+            DescriptorMemoryElement(4),
         ]
         # Vectors of length 1 for easy dummy hashing prediction.
         for i, d in enumerate(descriptors):
@@ -223,11 +223,11 @@ class TestLshIndex (unittest.TestCase):
                                         descr_set, hash_kvs, linear_hi)
 
         descriptors = [
-            DescriptorMemoryElement('t', 0),
-            DescriptorMemoryElement('t', 1),
-            DescriptorMemoryElement('t', 2),
-            DescriptorMemoryElement('t', 3),
-            DescriptorMemoryElement('t', 4),
+            DescriptorMemoryElement(0),
+            DescriptorMemoryElement(1),
+            DescriptorMemoryElement(2),
+            DescriptorMemoryElement(3),
+            DescriptorMemoryElement(4),
         ]
         # Vectors of length 1 for easy dummy hashing prediction.
         for i, d in enumerate(descriptors):
@@ -256,11 +256,11 @@ class TestLshIndex (unittest.TestCase):
                                         descr_set, hash_kvs)
 
         descriptors = [
-            DescriptorMemoryElement('t', 0),
-            DescriptorMemoryElement('t', 1),
-            DescriptorMemoryElement('t', 2),
-            DescriptorMemoryElement('t', 3),
-            DescriptorMemoryElement('t', 4),
+            DescriptorMemoryElement(0),
+            DescriptorMemoryElement(1),
+            DescriptorMemoryElement(2),
+            DescriptorMemoryElement(3),
+            DescriptorMemoryElement(4),
         ]
         # Vectors of length 1 for easy dummy hashing prediction.
         for d in descriptors:
@@ -284,15 +284,15 @@ class TestLshIndex (unittest.TestCase):
         index = LSHNearestNeighborIndex(DummyHashFunctor(),
                                         descr_set, hash_kvs)
         descriptors1 = [
-            DescriptorMemoryElement('t', 0),
-            DescriptorMemoryElement('t', 1),
-            DescriptorMemoryElement('t', 2),
-            DescriptorMemoryElement('t', 3),
-            DescriptorMemoryElement('t', 4),
+            DescriptorMemoryElement(0),
+            DescriptorMemoryElement(1),
+            DescriptorMemoryElement(2),
+            DescriptorMemoryElement(3),
+            DescriptorMemoryElement(4),
         ]
         descriptors2 = [
-            DescriptorMemoryElement('t', 5),
-            DescriptorMemoryElement('t', 6),
+            DescriptorMemoryElement(5),
+            DescriptorMemoryElement(6),
         ]
         # Vectors of length 1 for easy dummy hashing prediction.
         for d in descriptors1 + descriptors2:
@@ -332,18 +332,18 @@ class TestLshIndex (unittest.TestCase):
 
         # Identical Descriptors to build and update on (different instances)
         descriptors1 = [
-            DescriptorMemoryElement('t', 0).set_vector([0]),
-            DescriptorMemoryElement('t', 1).set_vector([1]),
-            DescriptorMemoryElement('t', 2).set_vector([2]),
-            DescriptorMemoryElement('t', 3).set_vector([3]),
-            DescriptorMemoryElement('t', 4).set_vector([4]),
+            DescriptorMemoryElement(0).set_vector([0]),
+            DescriptorMemoryElement(1).set_vector([1]),
+            DescriptorMemoryElement(2).set_vector([2]),
+            DescriptorMemoryElement(3).set_vector([3]),
+            DescriptorMemoryElement(4).set_vector([4]),
         ]
         descriptors2 = [
-            DescriptorMemoryElement('t', 0).set_vector([0]),
-            DescriptorMemoryElement('t', 1).set_vector([1]),
-            DescriptorMemoryElement('t', 2).set_vector([2]),
-            DescriptorMemoryElement('t', 3).set_vector([3]),
-            DescriptorMemoryElement('t', 4).set_vector([4]),
+            DescriptorMemoryElement(0).set_vector([0]),
+            DescriptorMemoryElement(1).set_vector([1]),
+            DescriptorMemoryElement(2).set_vector([2]),
+            DescriptorMemoryElement(3).set_vector([3]),
+            DescriptorMemoryElement(4).set_vector([4]),
         ]
 
         index.build_index(descriptors1)
@@ -376,18 +376,18 @@ class TestLshIndex (unittest.TestCase):
 
         # Similar Descriptors to build and update on (different instances)
         descriptors1 = [
-            DescriptorMemoryElement('t', 0).set_vector([0]),
-            DescriptorMemoryElement('t', 1).set_vector([1]),
-            DescriptorMemoryElement('t', 2).set_vector([2]),
-            DescriptorMemoryElement('t', 3).set_vector([3]),
-            DescriptorMemoryElement('t', 4).set_vector([4]),
+            DescriptorMemoryElement(0).set_vector([0]),
+            DescriptorMemoryElement(1).set_vector([1]),
+            DescriptorMemoryElement(2).set_vector([2]),
+            DescriptorMemoryElement(3).set_vector([3]),
+            DescriptorMemoryElement(4).set_vector([4]),
         ]
         descriptors2 = [
-            DescriptorMemoryElement('t', 5).set_vector([0]),
-            DescriptorMemoryElement('t', 6).set_vector([1]),
-            DescriptorMemoryElement('t', 7).set_vector([2]),
-            DescriptorMemoryElement('t', 8).set_vector([3]),
-            DescriptorMemoryElement('t', 9).set_vector([4]),
+            DescriptorMemoryElement(5).set_vector([0]),
+            DescriptorMemoryElement(6).set_vector([1]),
+            DescriptorMemoryElement(7).set_vector([2]),
+            DescriptorMemoryElement(8).set_vector([3]),
+            DescriptorMemoryElement(9).set_vector([4]),
         ]
 
         index.build_index(descriptors1)
@@ -415,18 +415,18 @@ class TestLshIndex (unittest.TestCase):
         """
         # Similar Descriptors to build and update on (different instances)
         descriptors1 = [
-            DescriptorMemoryElement('t', 0).set_vector([0]),
-            DescriptorMemoryElement('t', 1).set_vector([1]),
-            DescriptorMemoryElement('t', 2).set_vector([2]),
-            DescriptorMemoryElement('t', 3).set_vector([3]),
-            DescriptorMemoryElement('t', 4).set_vector([4]),
+            DescriptorMemoryElement(0).set_vector([0]),
+            DescriptorMemoryElement(1).set_vector([1]),
+            DescriptorMemoryElement(2).set_vector([2]),
+            DescriptorMemoryElement(3).set_vector([3]),
+            DescriptorMemoryElement(4).set_vector([4]),
         ]
         descriptors2 = [
-            DescriptorMemoryElement('t', 5).set_vector([0]),
-            DescriptorMemoryElement('t', 6).set_vector([1]),
-            DescriptorMemoryElement('t', 7).set_vector([2]),
-            DescriptorMemoryElement('t', 8).set_vector([3]),
-            DescriptorMemoryElement('t', 9).set_vector([4]),
+            DescriptorMemoryElement(5).set_vector([0]),
+            DescriptorMemoryElement(6).set_vector([1]),
+            DescriptorMemoryElement(7).set_vector([2]),
+            DescriptorMemoryElement(8).set_vector([3]),
+            DescriptorMemoryElement(9).set_vector([4]),
         ]
 
         descr_set = MemoryDescriptorSet()
@@ -467,15 +467,15 @@ class TestLshIndex (unittest.TestCase):
                                         descr_set, hash_kvs, linear_hi)
 
         descriptors1 = [
-            DescriptorMemoryElement('t', 0),
-            DescriptorMemoryElement('t', 1),
-            DescriptorMemoryElement('t', 2),
-            DescriptorMemoryElement('t', 3),
-            DescriptorMemoryElement('t', 4),
+            DescriptorMemoryElement(0),
+            DescriptorMemoryElement(1),
+            DescriptorMemoryElement(2),
+            DescriptorMemoryElement(3),
+            DescriptorMemoryElement(4),
         ]
         descriptors2 = [
-            DescriptorMemoryElement('t', 5),
-            DescriptorMemoryElement('t', 6),
+            DescriptorMemoryElement(5),
+            DescriptorMemoryElement(6),
         ]
         # Vectors of length 1 for easy dummy hashing prediction.
         for d in descriptors1 + descriptors2:
@@ -523,11 +523,11 @@ class TestLshIndex (unittest.TestCase):
 
         # Descriptors are 1 dim, value == index.
         descriptors = [
-            DescriptorMemoryElement('t', 0),
-            DescriptorMemoryElement('t', 1),
-            DescriptorMemoryElement('t', 2),
-            DescriptorMemoryElement('t', 3),
-            DescriptorMemoryElement('t', 4),
+            DescriptorMemoryElement(0),
+            DescriptorMemoryElement(1),
+            DescriptorMemoryElement(2),
+            DescriptorMemoryElement(3),
+            DescriptorMemoryElement(4),
         ]
         # Vectors of length 1 for easy dummy hashing prediction.
         for d in descriptors:
@@ -582,11 +582,11 @@ class TestLshIndex (unittest.TestCase):
 
         # Descriptors are 1 dim, value == index.
         descriptors = [
-            DescriptorMemoryElement('t', 0),
-            DescriptorMemoryElement('t', 1),
-            DescriptorMemoryElement('t', 2),
-            DescriptorMemoryElement('t', 3),
-            DescriptorMemoryElement('t', 4),
+            DescriptorMemoryElement(0),
+            DescriptorMemoryElement(1),
+            DescriptorMemoryElement(2),
+            DescriptorMemoryElement(3),
+            DescriptorMemoryElement(4),
         ]
         # Vectors of length 1 for easy dummy hashing prediction.
         for d in descriptors:
@@ -628,11 +628,11 @@ class TestLshIndex (unittest.TestCase):
 
         # Descriptors are 1 dim, value == index.
         descriptors = [
-            DescriptorMemoryElement('t', 0),
-            DescriptorMemoryElement('t', 1),
-            DescriptorMemoryElement('t', 2),
-            DescriptorMemoryElement('t', 3),
-            DescriptorMemoryElement('t', 4),
+            DescriptorMemoryElement(0),
+            DescriptorMemoryElement(1),
+            DescriptorMemoryElement(2),
+            DescriptorMemoryElement(3),
+            DescriptorMemoryElement(4),
         ]
         # Vectors of length 1 for easy dummy hashing prediction.
         for d in descriptors:
@@ -676,11 +676,11 @@ class TestLshIndex (unittest.TestCase):
 
         # Vectors of length 1 for easy dummy hashing prediction.
         descriptors = [
-            DescriptorMemoryElement('t', 0).set_vector([0]),
-            DescriptorMemoryElement('t', 1).set_vector([1]),
-            DescriptorMemoryElement('t', 2).set_vector([2]),
-            DescriptorMemoryElement('t', 3).set_vector([3]),
-            DescriptorMemoryElement('t', 4).set_vector([4]),
+            DescriptorMemoryElement(0).set_vector([0]),
+            DescriptorMemoryElement(1).set_vector([1]),
+            DescriptorMemoryElement(2).set_vector([2]),
+            DescriptorMemoryElement(3).set_vector([3]),
+            DescriptorMemoryElement(4).set_vector([4]),
         ]
 
         # Dummy hash function to do the simulated thing
@@ -769,7 +769,7 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         td = []
         np.random.seed(self.RANDOM_SEED)
         for j in range(i):
-            d = DescriptorMemoryElement('random', j)
+            d = DescriptorMemoryElement(j)
             d.set_vector(np.random.rand(dim))
             td.append(d)
 
@@ -789,7 +789,7 @@ class TestLshIndexAlgorithms (unittest.TestCase):
 
         # test query very near a build vector
         td_q = td[0]
-        q = DescriptorMemoryElement('query', i)
+        q = DescriptorMemoryElement(i)
         td_q_v = td_q.vector()
         assert td_q_v is not None
         v = td_q_v.copy()
@@ -802,7 +802,7 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         self.assertEqual(r[0], td_q)
 
         # random query
-        q = DescriptorMemoryElement('query', i+1)
+        q = DescriptorMemoryElement(i+1)
         q.set_vector(np.random.rand(dim))
 
         # for any query of size k, results should at least be in distance order
@@ -850,7 +850,7 @@ class TestLshIndexAlgorithms (unittest.TestCase):
             v = np.zeros(dim, float)
             v[i] = 1.
             test_descriptors.append(
-                DescriptorMemoryElement('unit', i).set_vector(v)
+                DescriptorMemoryElement(i).set_vector(v)
             )
 
         ftor_train_hook(test_descriptors)
@@ -865,7 +865,7 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         # query with zero vector
         # -> all modeled descriptors have no intersection, dists should be 1.0,
         #    or maximum distance by histogram intersection
-        q = DescriptorMemoryElement('query', 0)
+        q = DescriptorMemoryElement(0)
         q.set_vector(np.zeros(dim, float))
         r, dists = index.nn(q, dim)
         # All dists should be 1.0, r order doesn't matter
@@ -930,7 +930,7 @@ class TestLshIndexAlgorithms (unittest.TestCase):
         # make vectors to return in a known euclidean distance order
         i = 1000
         test_descriptors = [
-            DescriptorMemoryElement('ordered', j).set_vector(np.array([j, j*2], float))
+            DescriptorMemoryElement(j).set_vector(np.array([j, j*2], float))
             for j in range(i)
         ]
         random.shuffle(test_descriptors)
@@ -946,7 +946,7 @@ class TestLshIndexAlgorithms (unittest.TestCase):
 
         # Since descriptors were built in increasing distance from (0,0),
         # returned descriptors for a query of [0,0] should be in index order.
-        q = DescriptorMemoryElement('query', i)
+        q = DescriptorMemoryElement(i)
         q.set_vector(np.array([0, 0], float))
         # top result should have UUID == 0 (nearest to query)
         r, dists = index.nn(q, 5)

@@ -83,7 +83,7 @@ class TestFlannIndex (unittest.TestCase):
         self.assertTrue(f._has_model_data())
 
     def test_build_index_one(self) -> None:
-        d = DescriptorMemoryElement('test', 0)
+        d = DescriptorMemoryElement(0)
         d.set_vector(numpy.zeros(8, float))
         index = self._make_inst('euclidean')
         index.build_index([d])
@@ -112,7 +112,7 @@ class TestFlannIndex (unittest.TestCase):
         for i in range(dim):
             v = numpy.zeros(dim, float)
             v[i] = 1.
-            d = DescriptorMemoryElement('unit', i)
+            d = DescriptorMemoryElement(i)
             d.set_vector(v)
             test_descriptors.append(d)
 
@@ -126,9 +126,9 @@ class TestFlannIndex (unittest.TestCase):
     def test_update_index(self) -> None:
         # Build index with one descriptor, then "update" with a second
         # different descriptor checking that the new cache contains both.
-        d1 = DescriptorMemoryElement('test', 0)
+        d1 = DescriptorMemoryElement(0)
         d1.set_vector(numpy.zeros(8))
-        d2 = DescriptorMemoryElement('test', 1)
+        d2 = DescriptorMemoryElement(1)
         d2.set_vector(numpy.ones(8))
 
         index = self._make_inst('euclidean')
@@ -152,13 +152,13 @@ class TestFlannIndex (unittest.TestCase):
             v = numpy.zeros(dim, float)
             v[i] = 1.
             test_descriptors.append(
-                DescriptorMemoryElement('unit', i).set_vector([v])
+                DescriptorMemoryElement(i).set_vector([v])
             )
         index.build_index(test_descriptors)
         # query descriptor -- zero vector
         # -> all modeled descriptors should be equally distance (unit
         #    corners)
-        q = DescriptorMemoryElement('query', 0)
+        q = DescriptorMemoryElement(0)
         q.set_vector(numpy.zeros(dim, float))
         r, dists = index.nn(q, dim)
         # All dists should be 1.0, r order doesn't matter
@@ -171,7 +171,7 @@ class TestFlannIndex (unittest.TestCase):
         # make vectors to return in a known euclidean distance order
         i = 10
         test_descriptors = [
-            DescriptorMemoryElement('ordered', j).set_vector(numpy.array([j, j*2], float))
+            DescriptorMemoryElement(j).set_vector(numpy.array([j, j*2], float))
             for j in range(i)
         ]
         random.shuffle(test_descriptors)
@@ -180,7 +180,7 @@ class TestFlannIndex (unittest.TestCase):
         # Since descriptors were build in increasing distance from (0,0),
         # returned descriptors for a query of [0,0] should be in index
         # order.
-        q = DescriptorMemoryElement('query', 99)
+        q = DescriptorMemoryElement(99)
         q.set_vector(numpy.array([0, 0], float))
         r, dists = index.nn(q, i)
         for j, d, dist in zip(range(i), r, dists):
@@ -199,13 +199,13 @@ class TestFlannIndex (unittest.TestCase):
             v = numpy.zeros(dim, float)
             v[i] = 1.
             test_descriptors.append(
-                DescriptorMemoryElement('unit', i).set_vector(v)
+                DescriptorMemoryElement(i).set_vector(v)
             )
         index.build_index(test_descriptors)
         # query with zero vector
         # -> all modeled descriptors have no intersection, dists should be
         #    1.0, or maximum distance by histogram intersection.
-        q = DescriptorMemoryElement('query', 0)
+        q = DescriptorMemoryElement(0)
         q.set_vector(numpy.zeros(dim, float))
         r, dists = index.nn(q, dim)
         # All dists should be 1.0, r order doesn't matter
@@ -247,7 +247,7 @@ class TestFlannIndex (unittest.TestCase):
         for i in range(dim):
             v = numpy.zeros(dim, float)
             v[i] = 1.
-            d = DescriptorMemoryElement('unit', i)
+            d = DescriptorMemoryElement(i)
             d.set_vector(v)
             test_descriptors.append(d)
 
