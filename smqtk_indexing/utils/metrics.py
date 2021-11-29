@@ -1,6 +1,7 @@
-from math import acos, pi
+from math import pi
 
 import numpy as np
+from scipy.spatial.distance import cdist
 
 
 def histogram_intersection_distance(a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -85,7 +86,7 @@ def euclidean_distance(i: np.ndarray, j: np.ndarray) -> np.ndarray:
     return np.sqrt(np.square(i - j).sum(sum_axis))
 
 
-def cosine_similarity(i: np.ndarray, j: np.ndarray) -> float:
+def cosine_similarity(i: np.ndarray, j: np.ndarray) -> np.ndarray:
     """
     Angular similarity between vectors i and j. Results in a value between 1,
     where i and j are exactly the same, to -1, meaning exactly opposite. 0
@@ -97,19 +98,26 @@ def cosine_similarity(i: np.ndarray, j: np.ndarray) -> float:
     :param i: Vector i
     :param j: Vector j
 
-    :return: Float similarity.
+    :return: Float or array of cosine similarity.
     """
-    # numpy.linalg.norm is Frobenius norm (vector magnitude)
-    # return numpy.dot(i, j) / (numpy.linalg.norm(i) * numpy.linalg.norm(j))
+    # Only handling 1D-vectors for i
+    assert i.ndim == 1
 
-    # speed optimization, numpy.linalg.norm can be a bottleneck
-    # TODO(john.moeller): This can be made array-friendly
-    #   np.multiply(i, j).sum(axis) / (np.linalg.norm(i, i_axis) *
-    #       np.linalg.norm(j, j_axis))
-    return np.dot(i, j) / (np.sqrt(i.dot(i)) * np.sqrt(j.dot(j)))
+    i = i.reshape(1, -1)
+    if j.ndim == 1:
+        j = j.reshape(1, -1)
+
+    # Cosine similarity function returns matrix in shape of (i_N_samples, j_N_samples)
+    cosine_s = 1 - cdist(i, j, metric='cosine')[0]
+
+    # Return a float if both i and j only have one sample
+    if cosine_s.size == 1:
+        return cosine_s[0]
+    else:
+        return cosine_s
 
 
-def cosine_distance(i: np.ndarray, j: np.ndarray, pos_vectors: bool = True) -> float:
+def cosine_distance(i: np.ndarray, j: np.ndarray, pos_vectors: bool = True) -> np.ndarray:
     """
     Cosine similarity converted into angular distance.
 
@@ -121,10 +129,12 @@ def cosine_distance(i: np.ndarray, j: np.ndarray, pos_vectors: bool = True) -> f
     :param pos_vectors: If we expect vector elements to always be positive.
         Default value is True (common case).
 
-    :return: Float distance between [0, 1] range.
+    :return: Float or array of cosine distance between [0, 1] range.
     """
-    sim = max(-1.0, min(cosine_similarity(i, j), 1))
-    return (1 + bool(pos_vectors)) * acos(sim) / pi
+    # limit to between -1 and 1
+    sim = np.maximum(np.minimum(cosine_similarity(i, j), 1), -1)
+
+    return (1 + bool(pos_vectors)) * np.arccos(sim) / pi
 
 
 def hamming_distance(i: int, j: int) -> int:
