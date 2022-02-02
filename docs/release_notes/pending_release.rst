@@ -13,6 +13,10 @@ Miscellaneous
 * Added a wrapper script to pull the versioning/changelog update helper from
   smqtk-core to use here without duplication.
 
+Documentation
+
+* Updated CONTRIBUTING.md to reference smqtk-core's CONTRIBUTING.md file.
+
 Fixes
 -----
 
