@@ -1338,7 +1338,7 @@ sklearn = ["scikit-learn"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "a8b2a286c9e8645ddfd57ef8a65535ac0731291016593e2fff1f1384fe7bf2f4"
+content-hash = "05bab7922757a3d242dc4b51d9d2090a23302e7b4bfbdaf6e4687926b2b8b721"
 
 [metadata.files]
 alabaster = [
