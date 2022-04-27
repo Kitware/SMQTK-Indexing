@@ -35,3 +35,6 @@ Dependency Versions
 
 * Removed `jedi = "^0.17.2"` requirement since recent `ipython = "^7.17.3"`
   update appropriately addresses the dependency.
+
+* Update pinned jupyter notebook transitive dependency version due to
+  vulnerability warning.
