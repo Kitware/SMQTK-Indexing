@@ -1,4 +1,5 @@
 from math import pi
+from typing import Union
 
 import numpy as np
 from scipy.spatial.distance import cdist
@@ -70,7 +71,7 @@ def histogram_intersection_distance_fast(i: np.ndarray, j: np.ndarray) -> float:
     return 1.0 - ((i + j - np.abs(i - j)).sum() * 0.5)
 
 
-def euclidean_distance(i: np.ndarray, j: np.ndarray) -> np.ndarray:
+def euclidean_distance(i: np.ndarray, j: np.ndarray) -> Union[np.ndarray, float]:
     """
     Compute euclidean distance between two N-dimensional point vectors.
 
@@ -86,7 +87,7 @@ def euclidean_distance(i: np.ndarray, j: np.ndarray) -> np.ndarray:
     return np.sqrt(np.square(i - j).sum(sum_axis))
 
 
-def cosine_similarity(i: np.ndarray, j: np.ndarray) -> np.ndarray:
+def cosine_similarity(i: np.ndarray, j: np.ndarray) -> Union[np.ndarray, float]:
     """
     Angular similarity between vectors i and j. Results in a value between 1,
     where i and j are exactly the same, to -1, meaning exactly opposite. 0
@@ -117,7 +118,7 @@ def cosine_similarity(i: np.ndarray, j: np.ndarray) -> np.ndarray:
         return cosine_s
 
 
-def cosine_distance(i: np.ndarray, j: np.ndarray, pos_vectors: bool = True) -> np.ndarray:
+def cosine_distance(i: np.ndarray, j: np.ndarray, pos_vectors: bool = True) -> Union[np.ndarray, float]:
     """
     Cosine similarity converted into angular distance.
 
