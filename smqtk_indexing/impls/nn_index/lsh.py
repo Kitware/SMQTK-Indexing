@@ -243,10 +243,12 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
         :raises ValueError: Unrecognized distance method identifier is passed.
         """
         if distance_method == "euclidean":
-            return metrics.euclidean_distance
+            return cast(Callable[[numpy.ndarray, numpy.ndarray], float],
+                        metrics.euclidean_distance)
         elif distance_method == "cosine":
             # Inverse of cosine similarity function return
-            return metrics.cosine_distance
+            return cast(Callable[[numpy.ndarray, numpy.ndarray], float],
+                        metrics.cosine_distance)
         elif distance_method == 'hik':
             return metrics.histogram_intersection_distance_fast
         else:
@@ -289,6 +291,10 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
         method shall not add to the existing index nor raise an exception to as
         to protect the current index.
 
+        If there are elements in the input iterable whose element vector
+        resolves as None, that element is skipped for indexing, and a warning
+        message will be emitted.
+
         :raises ReadOnlyError: This index is set to be read-only and cannot be
             modified.
 
@@ -314,7 +320,11 @@ class LSHNearestNeighborIndex (NearestNeighborsIndex):
             # NOTE: Mapping type apparently not yet covariant in the key type.
             kvstore_update: Dict[Hashable, Set[Hashable]] = collections.defaultdict(set)
             for d in self.descriptor_set:
-                h_vec = self.lsh_functor.get_hash(d.vector())
+                d_vec = d.vector()
+                if d_vec is None:
+                    LOG.warning(f"Skipping descriptor UID={d.uuid()} with no vector.")
+                    continue
+                h_vec = self.lsh_functor.get_hash(d_vec)
                 hash_vectors.append(h_vec)
                 h_int = bit_vector_to_int_large(h_vec)
                 kvstore_update[h_int] |= {d.uuid()}

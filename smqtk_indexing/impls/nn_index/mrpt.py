@@ -524,8 +524,8 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
 
             uuids, distances = _exact_query(list(tree_hits))
             order = distances.argsort()
-            uuids, distances = zip(
-                *((uuids[oidx], distances[oidx]) for oidx in order))
+            uuids = [uuids[i] for i in order]
+            distances = distances[order]
 
             LOG.debug(f"Returning query result of size {len(uuids)}")
 

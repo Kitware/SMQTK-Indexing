@@ -13,7 +13,7 @@ class DummyHI (HashIndex):
     def is_usable(cls) -> bool:
         return True
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> Dict[str, Any]:  # type: ignore[empty-body]
         """ stub """
 
     def count(self) -> int:
@@ -28,7 +28,7 @@ class DummyHI (HashIndex):
     def _remove_from_index(self, hashes: Iterable[np.ndarray]) -> None:
         """ stub """
 
-    def _nn(self, h: np.ndarray, n: int = 1) -> Tuple[np.ndarray, Tuple[float, ...]]:
+    def _nn(self, h: np.ndarray, n: int = 1) -> Tuple[np.ndarray, Tuple[float, ...]]:  # type: ignore[empty-body]
         """ stub """
 
 
@@ -57,11 +57,13 @@ class TestHashIndex (unittest.TestCase):
         idx._build_index = mock.MagicMock()  # type: ignore
         # No error should be returned. Returned iterable contents should match
         # input values.
-        # noinspection PyTypeChecker
-        idx.build_index([0, 1, 2])
-        self.assertSetEqual(
-            set(idx._build_index.call_args[0][0]),
-            {0, 1, 2}
+        a = np.array([0])
+        b = np.array([1])
+        c = np.array([2])
+        idx.build_index([a, b, c])
+        self.assertListEqual(
+            list(idx._build_index.call_args[0][0]),
+            [a, b, c]
         )
 
     def test_update_index_empty_iter(self) -> None:
@@ -82,11 +84,13 @@ class TestHashIndex (unittest.TestCase):
         idx._update_index = mock.MagicMock()  # type: ignore
         # No error should be returned. Returned iterable contents should match
         # input values.
-        # noinspection PyTypeChecker
-        idx.update_index([0, 1, 2])
-        self.assertSetEqual(
-            set(idx._update_index.call_args[0][0]),
-            {0, 1, 2}
+        a = np.array([0])
+        b = np.array([1])
+        c = np.array([2])
+        idx.update_index([a, b, c])
+        self.assertListEqual(
+            list(idx._update_index.call_args[0][0]),
+            [a, b, c]
         )
 
     def test_remove_from_index_empty_iter(self) -> None:
@@ -107,11 +111,13 @@ class TestHashIndex (unittest.TestCase):
         idx._remove_from_index = mock.MagicMock()  # type: ignore
         # No error should be returned. Returned iterable contents should match
         # input values.
-        # noinspection PyTypeChecker
-        idx._remove_from_index([0, 1, 2])
-        self.assertSetEqual(
-            set(idx._remove_from_index.call_args[0][0]),
-            {0, 1, 2}
+        a = np.array([0])
+        b = np.array([1])
+        c = np.array([2])
+        idx._remove_from_index([a, b, c])
+        self.assertListEqual(
+            list(idx._remove_from_index.call_args[0][0]),
+            [0, 1, 2]
         )
 
     def test_nn_no_index(self) -> None:
@@ -127,16 +133,13 @@ class TestHashIndex (unittest.TestCase):
 
     def test_nn_has_count(self) -> None:
         idx = DummyHI()
-        # noinspection PyTypeHints
         idx.count = mock.MagicMock()  # type: ignore
         idx.count.return_value = 10
-        # noinspection PyTypeHints
         idx._nn = mock.MagicMock()  # type: ignore
         # This call should now pass that count returns something greater than 0.
-        # noinspection PyTypeChecker
-        idx.nn('dummy')
-        idx._nn.assert_called_with("dummy", 1)
+        test_query = np.array([1, 2, 3])
+        idx.nn(test_query)
+        idx._nn.assert_called_with(test_query, 1)
 
-        # noinspection PyTypeChecker
-        idx.nn('bar', 10)
-        idx._nn.assert_called_with("bar", 10)
+        idx.nn(test_query, 10)
+        idx._nn.assert_called_with(test_query, 10)

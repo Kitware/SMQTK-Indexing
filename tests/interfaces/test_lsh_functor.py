@@ -13,10 +13,10 @@ class DummyLshFunctor (LshFunctor):
     def is_usable(cls) -> bool:
         return True
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> Dict[str, Any]:  # type: ignore[empty-body]
         pass
 
-    def get_hash(self, descriptor: np.ndarray) -> np.ndarray:
+    def get_hash(self, descriptor: np.ndarray) -> np.ndarray:  # type: ignore[empty-body]
         pass
 
 
@@ -28,7 +28,7 @@ class TestLshFunctorAbstract (unittest.TestCase):
         # noinspection PyTypeHints
         f.get_hash = mock.MagicMock()  # type: ignore
 
-        expected_descriptor = 'pretend descriptor element'
+        expected_descriptor = np.array([1, 2, 3])
         # noinspection PyTypeChecker
         f(expected_descriptor)
         f.get_hash.assert_called_once_with(expected_descriptor)

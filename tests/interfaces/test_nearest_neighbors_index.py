@@ -17,7 +17,7 @@ class DummySI (NearestNeighborsIndex):
         """ stub """
         return True
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> Dict[str, Any]:  # type: ignore[empty-body]
         """ stub """
 
     def _build_index(self, descriptors: Iterable[DescriptorElement]) -> None:
@@ -29,7 +29,7 @@ class DummySI (NearestNeighborsIndex):
     def _remove_from_index(self, uids: Iterable[Hashable]) -> None:
         """ stub """
 
-    def _nn(
+    def _nn(  # type: ignore[empty-body]
         self,
         d: DescriptorElement,
         n: int = 1

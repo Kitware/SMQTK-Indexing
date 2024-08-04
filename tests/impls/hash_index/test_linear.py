@@ -46,22 +46,22 @@ class TestLinearHashIndex (unittest.TestCase):
 
     def test_build_index_no_cache(self) -> None:
         i = LinearHashIndex()
-        # noinspection PyTypeChecker
-        i.build_index([[0, 1, 0],
-                       [1, 0, 0],
-                       [0, 1, 1],
-                       [0, 0, 1]])
+        a = numpy.array
+        i.build_index([a([0, 1, 0]),
+                       a([1, 0, 0]),
+                       a([0, 1, 1]),
+                       a([0, 0, 1])])
         self.assertEqual(i.index, {1, 2, 3, 4})
         self.assertIsNone(i.cache_element)
 
     def test_build_index_with_cache(self) -> None:
         cache_element = DataMemoryElement()
         i = LinearHashIndex(cache_element)
-        # noinspection PyTypeChecker
-        i.build_index([[0, 1, 0],
-                       [1, 0, 0],
-                       [0, 1, 1],
-                       [0, 0, 1]])
+        a = numpy.array
+        i.build_index([a([0, 1, 0]),
+                       a([1, 0, 0]),
+                       a([0, 1, 1]),
+                       a([0, 0, 1])])
         self.assertEqual(i.index, {1, 2, 3, 4})
         self.assertFalse(cache_element.is_empty())
 
@@ -83,25 +83,25 @@ class TestLinearHashIndex (unittest.TestCase):
         # Test calling update index with no existing index.  Should result the
         # same as calling build_index with no index.
         i = LinearHashIndex()
-        # noinspection PyTypeChecker
-        i.update_index([[0, 1, 0],
-                        [1, 0, 0],
-                        [0, 1, 1],
-                        [0, 0, 1]])
+        a = numpy.array
+        i.update_index([a([0, 1, 0]),
+                        a([1, 0, 0]),
+                        a([0, 1, 1]),
+                        a([0, 0, 1])])
         self.assertEqual(i.index, {1, 2, 3, 4})
         self.assertIsNone(i.cache_element)
 
     def test_update_index_add_hashes(self) -> None:
         i = LinearHashIndex()
         # Build index with some initial hashes
-        # noinspection PyTypeChecker
-        i.build_index([[0, 0],
-                       [0, 1]])
+        a = numpy.array
+        i.build_index([a([0, 0]),
+                       a([0, 1])])
         self.assertSetEqual(i.index, {0, 1})
         # Update index with new stuff
-        # noinspection PyTypeChecker
-        i.update_index([[1, 0],
-                        [1, 1]])
+        a = numpy.array
+        i.update_index([a([1, 0]),
+                        a([1, 1])])
         self.assertSetEqual(i.index, {0, 1, 2, 3})
 
     def test_remove_from_index_single_not_in_index(self) -> None:
@@ -133,20 +133,19 @@ class TestLinearHashIndex (unittest.TestCase):
         # Test that actual removal occurs.
         i = LinearHashIndex()
         i.index = {0, 1, 2}
-        # noinspection PyTypeChecker
-        i.remove_from_index([[0, 0],
-                             [1, 0]])
+        a = numpy.array
+        i.remove_from_index([a([0, 0]),
+                             a([1, 0])])
         self.assertSetEqual(i.index, {1})
 
     def test_nn(self) -> None:
         i = LinearHashIndex()
-        # noinspection PyTypeChecker
-        i.build_index([[0, 1, 0],
-                       [1, 1, 0],
-                       [0, 1, 1],
-                       [0, 0, 1]])
-        # noinspection PyTypeChecker
-        near_codes, near_dists = i.nn([0, 0, 0], 4)
+        a = numpy.array
+        i.build_index([a([0, 1, 0]),
+                       a([1, 1, 0]),
+                       a([0, 1, 1]),
+                       a([0, 0, 1])])
+        near_codes, near_dists = i.nn(a([0, 0, 0]), 4)
         self.assertEqual(set(map(tuple, near_codes[:2])),
                          {(0, 1, 0), (0, 0, 1)})
         self.assertEqual(set(map(tuple, near_codes[2:])),
@@ -159,11 +158,11 @@ class TestLinearHashIndex (unittest.TestCase):
         self.assertTrue(cache_element.is_empty())
 
         i = LinearHashIndex(cache_element)
-        # noinspection PyTypeChecker
-        i.build_index([[0, 1, 0],
-                       [1, 0, 0],
-                       [0, 1, 1],
-                       [0, 0, 1]])
+        a = numpy.array
+        i.build_index([a([0, 1, 0]),
+                       a([1, 0, 0]),
+                       a([0, 1, 1]),
+                       a([0, 0, 1])])
         self.assertFalse(cache_element.is_empty())
         # Check byte content
         expected_cache = {1, 2, 3, 4}
@@ -175,12 +174,12 @@ class TestLinearHashIndex (unittest.TestCase):
         self.assertTrue(cache_element.is_empty())
 
         i = LinearHashIndex(cache_element)
+        a = numpy.array
+        i.build_index([a([0, 1, 0]),   # 2
+                       a([1, 0, 0])])  # 4
         # noinspection PyTypeChecker
-        i.build_index([[0, 1, 0],   # 2
-                       [1, 0, 0]])  # 4
-        # noinspection PyTypeChecker
-        i.update_index([[0, 1, 1],   # 3
-                        [0, 0, 1]])  # 1
+        i.update_index([a([0, 1, 1]),   # 3
+                        a([0, 0, 1])])  # 1
         self.assertFalse(cache_element.is_empty())
         # Check byte content
         expected_cache = {1, 2, 3, 4}
@@ -193,20 +192,19 @@ class TestLinearHashIndex (unittest.TestCase):
         self.assertTrue(cache_element.is_empty())
 
         i = LinearHashIndex(cache_element)
-        # noinspection PyTypeChecker
-        i.build_index([[0, 1, 0],   # 2
-                       [0, 1, 1],   # 3
-                       [1, 0, 0],   # 4
-                       [1, 1, 0]])  # 6
+        a = numpy.array
+        i.build_index([a([0, 1, 0]),   # 2
+                       a([0, 1, 1]),   # 3
+                       a([1, 0, 0]),   # 4
+                       a([1, 1, 0])])  # 6
         self.assertFalse(cache_element.is_empty())
         self.assertSetEqual(
             set(numpy.load(BytesIO(cache_element.get_bytes()))),
             {2, 3, 4, 6}
         )
 
-        # noinspection PyTypeChecker
-        i.remove_from_index([[0, 1, 1],   # 3
-                             [1, 0, 0]])  # 4
+        i.remove_from_index([a([0, 1, 1]),   # 3
+                             a([1, 0, 0])])  # 4
         self.assertFalse(cache_element.is_empty())
         self.assertSetEqual(
             set(numpy.load(BytesIO(cache_element.get_bytes()))),
@@ -242,11 +240,11 @@ class TestLinearHashIndex (unittest.TestCase):
     def test_load_cache(self) -> None:
         cache_element = DataMemoryElement()
         i1 = LinearHashIndex(cache_element)
-        # noinspection PyTypeChecker
-        i1.build_index([[0, 1, 0],
-                        [1, 0, 0],
-                        [0, 1, 1],
-                        [0, 0, 1]])
+        a = numpy.array
+        i1.build_index([a([0, 1, 0]),
+                        a([1, 0, 0]),
+                        a([0, 1, 1]),
+                        a([0, 0, 1])])
 
         # load called on initialization.
         i2 = LinearHashIndex(cache_element)

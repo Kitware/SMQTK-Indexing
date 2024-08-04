@@ -1,7 +1,7 @@
 from io import BytesIO
 import logging
 import threading
-from typing import cast, Any, Dict, Iterable, List, Optional, Tuple, Type, TypeVar
+from typing import cast, Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type, TypeVar
 import warnings
 
 import numpy as np
@@ -213,7 +213,7 @@ class SkLearnBallTreeHashIndex (HashIndex):
         with self._model_lock:
             return self.bt.data.shape[0] if self.bt else 0
 
-    def _build_bt_internal(self, vec_list: List[np.ndarray]) -> None:
+    def _build_bt_internal(self, vec_list: Sequence[np.ndarray]) -> None:
         """
         Internal shared BallTree build function given a list of boolean hash
         vectors.
@@ -283,13 +283,13 @@ class SkLearnBallTreeHashIndex (HashIndex):
             if self.bt is None:
                 # 0-row array using bit-vector size of first new entry length.
                 # - Must have at least one new hash due to super-method check.
-                indexed_hash_vectors = np.ndarray((0, len(new_hashes[0])))
+                indexed_hash_vectors: np.ndarray = np.ndarray((0, len(new_hashes[0])))
             else:
                 indexed_hash_vectors = self.bt.data
             # Build a new index as normal with the union of source data.
             LOG.debug("Updating index by rebuilding with union.")
             self._build_bt_internal(
-                np.concatenate([indexed_hash_vectors, new_hashes], 0)
+                np.concatenate([indexed_hash_vectors, new_hashes], 0).tolist()
             )
 
     def _remove_from_index(self, hashes: Iterable[np.ndarray]) -> None:
