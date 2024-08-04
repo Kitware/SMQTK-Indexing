@@ -11,14 +11,19 @@ CI
 * Updated CI unittests workflow to include codecov reporting.
   Reduced CodeCov report submission by skipping this step on scheduled runs.
 
-Miscellaneous
+Dependencies
 
-* Added a wrapper script to pull the versioning/changelog update helper from
-  smqtk-core to use here without duplication.
+* Update minimum minimum python to 3.9 to reflect currently and soon-to-be
+  deprecated versions of python.
 
 Documentation
 
 * Updated CONTRIBUTING.md to reference smqtk-core's CONTRIBUTING.md file.
+
+Miscellaneous
+
+* Added a wrapper script to pull the versioning/changelog update helper from
+  smqtk-core to use here without duplication.
 
 Fixes
 -----
