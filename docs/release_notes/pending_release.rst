@@ -4,6 +4,14 @@ Pending Release Notes
 Updates / New Features
 ----------------------
 
+* Updated supported Python versions to 3.10 through 3.14.
+
+* Updated CI to use ``actions/setup-python`` on Ubuntu 24.04 instead of job
+  containers to avoid container registry pull limits.
+
+* Updated NumPy requirements to match the other SMQTK packages and refreshed
+  dependency requirements for supported Python versions and security fixes.
+
 CI
 
 * Added workflow to inherit the smqtk-core publish workflow.
@@ -23,6 +31,15 @@ Documentation
 Fixes
 -----
 
+* Explicitly installed the configured Sphinx theme in Read the Docs builds.
+
+* Replaced local worker lambdas with picklable callables in ITQ, simple random
+  projection, and MRPT descriptor collection to support Python 3.14's default
+  multiprocessing start method.
+
+* Required Tornado 6.6 or newer on Python 3.11 and newer to address security
+  advisories in the documentation and notebook dependencies.
+
 CI
 
 * Modified CI unittests workflow to run for PRs targetting branches that match
@@ -38,3 +55,11 @@ Dependency Versions
 
 * Update pinned jupyter notebook transitive dependency version due to
   vulnerability warning.
+
+Known Issues
+------------
+
+* Python 3.10 retains Pillow 12.3.0 and Tornado 6.5.10 because their patched
+  releases require Python 3.11. Newer Pillow and Tornado security advisories
+  remain unresolved on Python 3.10; Python 3.11 and newer require Pillow 13
+  and Tornado 6.6 with these fixes.

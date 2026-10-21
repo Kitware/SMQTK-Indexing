@@ -434,6 +434,7 @@ class FlannNearestNeighborsIndex (NearestNeighborsIndex):
             assert self._flann is not None, (
                 "We should have an index after restoration."
             )
+            assert self._flann_build_params is not None
 
             vec = d.vector()
 

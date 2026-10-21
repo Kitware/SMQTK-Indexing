@@ -21,7 +21,8 @@ T = TypeVar("T", bound="SkLearnBallTreeHashIndex")
 
 
 try:
-    from sklearn.neighbors import BallTree, DistanceMetric
+    from sklearn.metrics import DistanceMetric
+    from sklearn.neighbors import BallTree
 except ImportError:
     warnings.warn(
         "Failed to import optional package scikit-learn, "

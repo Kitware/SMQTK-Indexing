@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from itertools import chain, groupby
 import logging
+from operator import methodcaller
 import pickle
 from os import path as osp
 import threading
@@ -258,7 +259,7 @@ class MRPTNearestNeighborsIndex (NearestNeighborsIndex):
             # - Using slicing on pts_array due to g being <= chunk-size on the
             #   last chunk.
             pts_array[:len(chunk)] = list(parallel_map(
-                lambda d_: d_.vector(),
+                methodcaller("vector"),
                 chunk,
                 use_multiprocessing=self._use_multiprocessing
             ))
