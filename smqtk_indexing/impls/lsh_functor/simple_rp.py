@@ -1,4 +1,5 @@
 import logging
+from operator import methodcaller
 from typing import Any, Dict, Iterable, Optional, Union
 
 import numpy as np
@@ -106,7 +107,7 @@ class SimpleRPFunctor (LshFunctor):
             descriptors = descriptors_l
         LOG.info("Creating matrix of descriptors for fitting")
         x = np.asarray(list(
-            parallel_map(lambda d_: d_.vector(), descriptors,
+            parallel_map(methodcaller("vector"), descriptors,
                          use_multiprocessing=use_multiprocessing)
         ))
         LOG.debug("descriptor matrix shape: %s", x.shape)

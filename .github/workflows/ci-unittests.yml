@@ -11,6 +11,10 @@ on:
   pull_request:
     branches:
       - master
+      - release*
+  schedule:
+    # Nightly run unit tests to check for implicit dependency issues between pull requests.
+    - cron: '0 0 * * *'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -24,25 +28,25 @@ defaults:
 #       steps.
 jobs:
   lint:
-    runs-on: ubuntu-latest
-    container: python:3.6
+    runs-on: ubuntu-24.04
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Set up Python
+        id: setup-python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
       # Cache local python environment artifacts for the current python version
       # and poetry lockfile hash.
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         id: env-cache
         with:
-          # Confirmed that the `.local` directory doesn't exist until the
-          # `pip install --user` is invoked below, so we can be confident that
-          # only our python stuff is being captured in this cache (intentional).
           path: |
             ~/.cache/pypoetry/virtualenvs/
-            ~/.local
-          key: python-3.6-${{ hashFiles('poetry.lock') }}
+          key: host-ubuntu-24.04-${{ runner.arch }}-python-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('poetry.lock') }}
       - name: Setup Environment
         # See: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#example-using-a-public-action-in-a-subdirectory
         uses: Kitware/SMQTK-Core/.github/actions/python-poetry-setup@master
@@ -50,25 +54,25 @@ jobs:
         run: poetry run flake8
 
   typecheck:
-    runs-on: ubuntu-latest
-    container: python:3.6
+    runs-on: ubuntu-24.04
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Set up Python
+        id: setup-python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
       # Cache local python environment artifacts for the current python version
       # and poetry lockfile hash.
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         id: env-cache
         with:
-          # Confirmed that the `.local` directory doesn't exist until the
-          # `pip install --user` is invoked below, so we can be confident that
-          # only our python stuff is being captured in this cache (intentional).
           path: |
             ~/.cache/pypoetry/virtualenvs/
-            ~/.local
-          key: python-3.6-${{ hashFiles('poetry.lock') }}
+          key: host-ubuntu-24.04-${{ runner.arch }}-python-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('poetry.lock') }}
       - name: Setup Environment
         # See: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#example-using-a-public-action-in-a-subdirectory
         uses: Kitware/SMQTK-Core/.github/actions/python-poetry-setup@master
@@ -76,10 +80,10 @@ jobs:
         run: poetry run mypy
 
   unittests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         # Extras for included, optional plugin support (space-separated lists)
         opt-extra: [
             "",  # no extras
@@ -89,29 +93,30 @@ jobs:
       # We want all python versions tested even if one of them happens to fail
       fail-fast: false
 
-    container: python:${{ matrix.python-version }}
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Set up Python
+        id: setup-python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "${{ matrix.python-version }}"
       # Cache local python environment artifacts for the current python version
       # and poetry lockfile hash.
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         id: env-cache
         with:
-          # Confirmed that the `.local` directory doesn't exist until the
-          # `pip install --user` is invoked below, so we can be confident that
-          # only our python stuff is being captured in this cache (intentional).
           path: |
             ~/.cache/pypoetry/virtualenvs/
-            ~/.local
-          key: python-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}-${{ matrix.opt-extra }}
+          key: host-ubuntu-24.04-${{ runner.arch }}-python-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('poetry.lock') }}-${{ matrix.opt-extra }}
       - name: Setup Environment
         # See: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#example-using-a-public-action-in-a-subdirectory
         uses: Kitware/SMQTK-Core/.github/actions/python-poetry-setup@master
+
       - name: Optionally install additional requirements
         env:
           OPT_EXTRA: ${{ matrix.opt-extra }}
@@ -120,5 +125,15 @@ jobs:
           then
             poetry install --extras "$OPT_EXTRA"
           fi
+
       - name: Run Unittests
-        run: poetry run pytest --cov=smqtk_indexing --cov-config=.pytest.coveragerc
+        run: poetry run pytest
+
+      - name: CodeCov report submission
+        if: ${{ github.event_name != 'schedule' }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN || '' }}
+          fail_ci_if_error: true
+          files: coverage.xml
+          flags: unittests
