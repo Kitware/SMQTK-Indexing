@@ -1,6 +1,12 @@
 v0.19.0
 =======
 
+This release adds official Python 3.14 support and testing, including the FAISS
+and scikit-learn extras, with NumPy 2 compatibility across supported Python
+versions. It also fixes multiprocessing for Python 3.14, updates dependencies
+for compatibility and security, and runs CI directly on Ubuntu runners to avoid
+container registry pull limits.
+
 Updates / New Features
 ----------------------
 
