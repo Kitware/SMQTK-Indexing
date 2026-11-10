@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from copy import deepcopy
 from io import BytesIO
 import logging
+from operator import methodcaller
 from typing import Any, Dict, Iterable, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
@@ -108,8 +109,8 @@ class ItqFunctor (LshFunctor):
 
     def __init__(
         self,
-        mean_vec_cache: DataElement = None,
-        rotation_cache: DataElement = None,
+        mean_vec_cache: Optional[DataElement] = None,
+        rotation_cache: Optional[DataElement] = None,
         bit_length: int = 8,
         itq_iterations: int = 50,
         normalize: Optional[Union[int, float, str]] = None,
@@ -283,7 +284,7 @@ class ItqFunctor (LshFunctor):
         #       rotation matrix computed.
         # TODO: Could move this step up one level and just return rotation mat?
         z = np.dot(v, r)
-        b = np.zeros(z.shape, dtype=np.bool)
+        b = np.zeros(z.shape, dtype=bool)
         b[z >= 0] = True
 
         return b, r
@@ -323,7 +324,8 @@ class ItqFunctor (LshFunctor):
                 dbg_report and pr.increment_report()  # type: ignore
             dbg_report and pr.report()  # type: ignore
             descriptors = descriptors_l
-        if len(descriptors[0].vector()) < self.bit_length:
+        first_vector = descriptors[0].vector()
+        if first_vector is None or len(first_vector) < self.bit_length:
             raise ValueError("Input descriptors have fewer features than "
                              "requested bit encoding. Hash codes will be "
                              "smaller than requested due to PCA decomposition "
@@ -331,7 +333,7 @@ class ItqFunctor (LshFunctor):
 
         LOG.info("Creating matrix of descriptors for fitting")
         x = np.asarray(list(
-            parallel_map(lambda d_: d_.vector(), descriptors,
+            parallel_map(methodcaller("vector"), descriptors,
                          use_multiprocessing=use_multiprocessing)
         ))
         LOG.debug("descriptor matrix shape: %s", x.shape)

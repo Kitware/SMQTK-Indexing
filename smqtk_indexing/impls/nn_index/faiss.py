@@ -181,9 +181,9 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
 
     def __init__(
         self,
-        descriptor_set: DescriptorSet = None,
-        idx2uid_kvs: KeyValueStore = None,
-        uid2idx_kvs: KeyValueStore = None,
+        descriptor_set: Optional[DescriptorSet] = None,
+        idx2uid_kvs: Optional[KeyValueStore] = None,
+        uid2idx_kvs: Optional[KeyValueStore] = None,
         index_element: Optional[DataElement] = None,
         index_param_element: Optional[DataElement] = None,
         read_only: bool = False,
@@ -824,8 +824,8 @@ class FaissNearestNeighborsIndex (NearestNeighborsIndex):
                   min(d_dists), max(d_dists))
 
         order = d_dists.argsort()
-        uuids, d_dists = zip(*((uuids[oidx], d_dists[oidx]) for oidx in order))
+        ordered_distances = tuple(d_dists[oidx] for oidx in order)
 
         LOG.debug("Returning query result of size %g", len(uuids))
 
-        return descriptors, tuple(d_dists)
+        return descriptors, ordered_distances

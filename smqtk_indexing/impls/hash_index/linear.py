@@ -239,6 +239,6 @@ class LinearHashIndex (HashIndex):
             distances = map(hamming_distance, near_codes,
                             [h_int] * len(near_codes))
             return (
-                numpy.row_stack([int_to_bit_vector_large(c, bits) for c in near_codes]),
+                numpy.vstack([int_to_bit_vector_large(c, bits) for c in near_codes]),
                 tuple(d / float(bits) for d in distances)
             )
